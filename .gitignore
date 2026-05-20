@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
+*.egg-info/
 .env
+.venv/
+.pytest_cache/
 cookies.json
 scrape.log
 scrape_tracks.log

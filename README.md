@@ -2,108 +2,115 @@
 
 Скрейпер курса "Безопасность информационных систем" (НИЯУ МИФИ × SkillFactory) в Obsidian vault.
 
-## Что делает
-
-Скачивает с платформы SkillFactory (Open edX) все лекции, тесты и материалы и складывает в структурированный Obsidian vault:
-
-```
-vault/
-├── index.md                  ← точка входа (красная нода)
-├── Семестр 1/                ← 9 дисциплин
-├── Семестр 2/                ← 4 дисциплины
-├── Семестр 3/                ← 8 дисциплин
-├── Семестр 4/                ← 3 дисциплины
-├── ДПО и факультативы/
-├── Трек Пентест/             ← отдельный курс
-├── Трек Комплаенс/           ← (пустой на платформе)
-└── .obsidian/graph.json      ← цвета для Graph View
-```
-
-Каждый файл содержит:
-- YAML frontmatter с тегами для Graph View (семестр, дисциплина, тип)
-- Навигационные backlinks (`> **nav:** [[← назад]]`)
-- Чистый markdown с заголовками и LaTeX-формулами
-
-## Требования
+## Установка
 
 ```bash
-pip install requests beautifulsoup4 markdownify
+git clone <repo>
+cd masters-course
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
-Python 3.10+
+Требуется `ffmpeg` для скачивания видео:
+```bash
+brew install ffmpeg  # macOS
+```
 
-## Запуск
+## Cookies
 
-### 1. Получить cookies
-
-Залогинься на https://student-lk.skillfactory.ru/my-study и достань cookies одним из способов:
-
-**Способ A — DevTools:**
-1. F12 → Application → Cookies → `.skillfactory.ru`
-2. Скопируй значения трёх cookies в `cookies.json`:
+Залогинься на https://student-lk.skillfactory.ru и создай `cookies.json`:
 
 ```json
 {
-  "sessionid": "1|abc...",
-  "edx-jwt-cookie-header-payload": "eyJ...",
-  "edx-jwt-cookie-signature": "xyz..."
+  "sessionid": "...",
+  "edx-jwt-cookie-header-payload": "...",
+  "edx-jwt-cookie-signature": "..."
 }
 ```
 
-**Способ B — Cookie-Editor (расширение браузера):**
-1. Установи Cookie-Editor для Firefox/Chrome
-2. На странице skillfactory нажми Export → JSON
-3. Сохрани как `cookies.json` (скрипт поддерживает массив)
+Или экспортируй через Cookie-Editor (массив поддерживается).
 
-### 2. Запустить скрейпер
+## Использование
+
+### Wizard (интерактивно)
 
 ```bash
-python3 scrape.py
+mifisec
 ```
 
-Займёт ~20 минут (основной курс) + ~5 минут (трек пентест).
+### CLI
 
-### 3. Открыть в Obsidian
+```bash
+mifisec --all                   # всё (лекции → картинки → видео)
+mifisec --stage 1               # только лекции (~20 мин)
+mifisec --stage 2               # только картинки/PDF (~3 мин)
+mifisec --stage 3               # только видео (~3 часа, 720p)
+mifisec --stage 3 --quality 480 # видео в 480p (экономия места)
+mifisec --stage 1 --limit 5     # 5 юнитов (smoke test)
+mifisec --list-videos           # список видео без скачивания
+mifisec --output /path/to/vault # другая директория
+```
 
-1. Obsidian → Open folder as vault → выбрать папку `vault/`
-2. Graph View: `Cmd+P` → `Graph view: Open graph view`
-3. Цвета и layout подхватятся из `.obsidian/graph.json`
+## Что скачивается
 
-## Graph View — цвета
+| Stage | Что | Размер | Время |
+|-------|-----|--------|-------|
+| 1 | Лекции, тесты, материалы → markdown | ~20 MB | ~20 мин |
+| 2 | Картинки, PDF, PPTX → `_assets/` | ~500 MB | ~3 мин |
+| 3 | Видео записи занятий → `_videos/` | ~10 GB (720p) | ~3 часа |
+
+## Структура vault
+
+```
+vault/
+├── index.md                     ← точка входа
+├── Семестр 1/                   ← 9 дисциплин
+│   ├── Семестр 1.md             ← хаб семестра
+│   └── 01. I. Адаптационный курс/
+│       ├── I. Адаптационный курс.md  ← MOC дисциплины
+│       └── 01. Модуль 1.../
+│           ├── Модуль 1.md      ← агрегат секции
+│           └── 01. Тема.md      ← отдельный урок
+├── Семестр 2/ ... 4/
+├── ДПО и факультативы/
+├── Трек Пентест/
+├── Трек Комплаенс/
+├── _assets/                     ← картинки/документы (Stage 2)
+├── _videos/                     ← записи занятий (Stage 3)
+└── .obsidian/graph.json         ← цвета для Graph View
+```
+
+## Graph View
+
+Открой vault в Obsidian → `Cmd+P` → `Graph view: Open graph view`.
 
 | Цвет | Что |
 |------|-----|
-| Красный (большой) | index — точка входа |
+| Красный (крупный) | index |
 | Золотой | Семестровые хабы |
-| Жёлтый | MOC дисциплин |
-| Синий/тёмный | Семестр 1 |
+| Жёлтый | Дисциплины (MOC) |
+| Синий | Семестр 1 |
 | Зелёный | Семестр 2 |
 | Оранжевый | Семестр 3 |
 | Красный (мелкий) | Семестр 4 |
 | Фиолетовый | ДПО |
 | Розовый | Треки |
 
-## Структура проекта
+## Тесты
 
-```
-masters-course/
-├── scrape.py           ← единственный скрипт
-├── cookies.json        ← твои cookies (в .gitignore)
-├── vault/              ← результат (в .gitignore)
-├── .gitignore
-└── README.md
+```bash
+pytest
 ```
 
-## FAQ
+## Структура кода
 
-**Cookies протухли?**
-Перелогинься на skillfactory и обнови cookies.json. JWT живёт ~7 дней, sessionid дольше.
-
-**Трек Комплаенс пустой?**
-На платформе 0 глав — контент не выложен или курс неактивен.
-
-**Хочу только один трек?**
-Отредактируй `main()` в `scrape.py` — закомментируй ненужные `scrape_track()`.
-
-**Obsidian не показывает цвета?**
-Закрой Graph View tab → `Cmd+P` → `Graph view: Open graph view` (новый таб подхватит graph.json).
+```
+src/mifisec/
+├── cli.py       ← entry point, wizard + argparse
+├── auth.py      ← cookie loading, session
+├── scraper.py   ← Stage 1: course → markdown
+├── assets.py    ← Stage 2: CDN → _assets/
+├── videos.py    ← Stage 3: Kinescope → _videos/
+└── utils.py     ← shared constants, helpers
+```
