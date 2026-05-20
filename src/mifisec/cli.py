@@ -156,7 +156,11 @@ def wizard(output_dir: Path, quality: int = 720):
 
     assets_dir = output_dir / '_assets'
     if assets_dir.exists() and len(list(assets_dir.iterdir())) > 100:
-        print("  ⚡ Assets уже скачаны — пропускаем")
+        print("  ⚡ Assets уже скачаны")
+        if ask("Перекачать assets?", default='n'):
+            run_stage2(output_dir)
+        else:
+            print("  Пропущено")
     elif ask("Скачать картинки и документы?"):
         run_stage2(output_dir)
     else:
@@ -172,10 +176,18 @@ def wizard(output_dir: Path, quality: int = 720):
     if not shutil.which('ffmpeg'):
         print("  ⚠ ffmpeg не найден! Установи: brew install ffmpeg")
         print("  Пропущено")
-    elif ask("Скачать видео записи?", default='n'):
-        run_stage3(output_dir, quality=quality)
     else:
-        print("  Пропущено")
+        videos_dir = output_dir / '_videos'
+        if videos_dir.exists() and len(list(videos_dir.rglob('*.mp4'))) > 10:
+            print(f"  ⚡ Видео уже скачаны ({len(list(videos_dir.rglob('*.mp4')))} файлов)")
+            if ask("Докачать/перекачать видео?", default='n'):
+                run_stage3(output_dir, quality=quality)
+            else:
+                print("  Пропущено")
+        elif ask("Скачать видео записи?", default='n'):
+            run_stage3(output_dir, quality=quality)
+        else:
+            print("  Пропущено")
 
     # Done
     print()
