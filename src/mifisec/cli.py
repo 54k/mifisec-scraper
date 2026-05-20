@@ -136,7 +136,11 @@ def wizard(output_dir: Path, quality: int = 720):
     print()
 
     if (output_dir / 'index.md').exists():
-        print("  ⚡ Vault уже существует — пропускаем Stage 1")
+        print("  ⚡ Vault уже существует")
+        if ask("Перескачать лекции (перезапишет)?", default='n'):
+            run_stage1(output_dir)
+        else:
+            print("  Пропущено")
     elif ask("Скачать лекции?"):
         run_stage1(output_dir)
     else:
