@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0"]
+dev = ["pytest>=7.0", "responses>=0.24"]
 
 [project.scripts]
 mifisec = "mifisec.cli:main"

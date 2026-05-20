@@ -1,0 +1,90 @@
+{
+  "course_blocks": {
+    "blocks": {
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@e1a61ca411264323a8482c6f3fea3eed": {
+        "type": "vertical",
+        "display_name": "Силлабус",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@ab0c6d82d51f4ac19774d0b7c296683f": {
+        "type": "sequential",
+        "display_name": "Силлабус дисциплины",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@e1a61ca411264323a8482c6f3fea3eed"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@708ebf145ee64e288a5da51d4c5ffb62": {
+        "type": "vertical",
+        "display_name": "Введение в компьютерную криминалистику",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@4f6b3f016e79422d9a292f7f60a4926d": {
+        "type": "sequential",
+        "display_name": "Модуль 1. Введение в компьютерную криминалистику",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@708ebf145ee64e288a5da51d4c5ffb62"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@chapter+block@67f1b334ed174bfb9aa95e0a42ee2f8d": {
+        "type": "chapter",
+        "display_name": "IV. Факультатив в формате ДПО \"Форензика в ОС Windows\"",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@ab0c6d82d51f4ac19774d0b7c296683f",
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@4f6b3f016e79422d9a292f7f60a4926d"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@9a3c93a32aa648c892800bedaa4743ba": {
+        "type": "vertical",
+        "display_name": "Темы групповых проектов",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@cded26d2fe3f41dcaa6348c589d8fcd2": {
+        "type": "vertical",
+        "display_name": "Индивидуальные темы",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@e182dc9ff7324d0db745affaa6cf3442": {
+        "type": "sequential",
+        "display_name": "Темы выпускной квалификационной работы",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@9a3c93a32aa648c892800bedaa4743ba",
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@cded26d2fe3f41dcaa6348c589d8fcd2"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@bcfb2f33866541fa932b9576909368f1": {
+        "type": "vertical",
+        "display_name": "26.02.2025 Встрече с научным руководителем А.Епишкиной",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@2ee7e84c02e5457883a3ed30bd0c97bd": {
+        "type": "vertical",
+        "display_name": "28.02.2025 организационная встреча с Константином Когос",
+        "children": []
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@dc6457f6f7fd45b6871e4ba4445404ef": {
+        "type": "sequential",
+        "display_name": "записи консультаций и встреч",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@bcfb2f33866541fa932b9576909368f1",
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@vertical+block@2ee7e84c02e5457883a3ed30bd0c97bd"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@chapter+block@a9cc3cd690db45f0a432e0c19602c2f5": {
+        "type": "chapter",
+        "display_name": "IV. Выпускная квалификационная работа",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@e182dc9ff7324d0db745affaa6cf3442",
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@sequential+block@dc6457f6f7fd45b6871e4ba4445404ef"
+        ]
+      },
+      "block-v1:SkillFactory+MIFISEC+SEP_2023+type@course+block@course": {
+        "type": "course",
+        "display_name": "Test Course",
+        "children": [
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@chapter+block@67f1b334ed174bfb9aa95e0a42ee2f8d",
+          "block-v1:SkillFactory+MIFISEC+SEP_2023+type@chapter+block@a9cc3cd690db45f0a432e0c19602c2f5"
+        ]
+      }
+    }
+  }
+}
