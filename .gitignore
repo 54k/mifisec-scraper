@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+cookies.json
+scrape.log
+scrape_tracks.log
+vault/
+.obsidian/
