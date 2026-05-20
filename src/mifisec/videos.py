@@ -75,18 +75,22 @@ def download_with_ffmpeg(m3u8_url: str, output: Path) -> bool:
         return True
     output.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
-        'ffmpeg', '-y',
+        'ffmpeg', '-y', '-loglevel', 'error',
         '-headers', 'Referer: https://lms.skillfactory.ru/\r\n',
         '-i', m3u8_url,
         '-map', '0:v:0', '-map', '0:a:0',
-        '-c', 'copy', '-movflags', '+faststart',
+        '-c', 'copy',
         str(output),
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=7200)  # 2 hours max
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=7200,
+        )
         return result.returncode == 0 and output.exists() and output.stat().st_size > 1024
     except (subprocess.TimeoutExpired, OSError):
-        # Clean up partial file
         if output.exists():
             output.unlink()
         return False
