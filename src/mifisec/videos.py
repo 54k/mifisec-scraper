@@ -154,3 +154,76 @@ def download_videos(session: requests.Session, output_dir: Path,
     print(f"\nDone: {success} downloaded, {skipped} cached, {failed} failed")
     total_size = sum(f.stat().st_size for f in videos_dir.rglob('*.mp4'))
     print(f"Total video size: {total_size / 1024 / 1024 / 1024:.1f} GB")
+
+    # Link videos to their markdown files
+    print(f"\nLinking videos to vault notes...")
+    linked = link_videos_to_vault(output_dir, videos_dir)
+    print(f"  Linked {linked} videos to notes")
+
+
+def link_videos_to_vault(vault_dir: Path, videos_dir: Path) -> int:
+    """Find corresponding markdown files and insert ![[video.mp4]] embeds."""
+    linked = 0
+
+    # Build index: strip numeric prefix from md filenames for matching
+    # "01. Занятие 1. 05.09.md" → "Занятие 1. 05.09"
+    md_index = {}  # clean_stem → md_file path
+    for md_file in vault_dir.rglob('*.md'):
+        if md_file.is_relative_to(videos_dir):
+            continue
+        if md_file.is_relative_to(vault_dir / '_assets'):
+            continue
+        # Strip leading "NN. " prefix
+        clean = re.sub(r'^\d+[\.\-]\s*', '', md_file.stem)
+        md_index.setdefault(clean.lower(), []).append(md_file)
+
+    for mp4 in videos_dir.rglob('*.mp4'):
+        video_name = mp4.name
+        embed = f'![[{video_name}]]'
+        stem = mp4.stem  # "Занятие 1. 05.09" or "26.02.2025 Встреча..."
+
+        # Find matching md file
+        candidates = md_index.get(stem.lower(), [])
+
+        # If no exact match, try substring search in "Записи" sections
+        if not candidates:
+            for md_file in vault_dir.rglob('*.md'):
+                if md_file.is_relative_to(videos_dir) or md_file.is_relative_to(vault_dir / '_assets'):
+                    continue
+                if 'Записи' in str(md_file) or 'записи' in str(md_file):
+                    clean_md = re.sub(r'^\d+[\.\-]\s*', '', md_file.stem)
+                    if stem.lower() == clean_md.lower():
+                        candidates.append(md_file)
+
+        if not candidates:
+            # No matching .md exists — find the section aggregate and append there
+            # Look for section "Записи" files in matching chapter
+            chapter_dir_name = mp4.parent.name  # e.g. "IV. Выпускная квалификационная работа"
+            for md_file in vault_dir.rglob('*.md'):
+                if md_file.is_relative_to(videos_dir):
+                    continue
+                if chapter_dir_name.lower() in str(md_file).lower() and 'записи' in str(md_file).lower():
+                    if md_file.stem.lower().startswith('записи'):
+                        candidates.append(md_file)
+                        break
+
+        for md_file in candidates:
+            content = md_file.read_text(encoding='utf-8')
+            if embed in content:
+                linked += 1  # already linked, count as success
+                break
+            # Insert after heading
+            lines = content.split('\n')
+            inserted = False
+            for i, line in enumerate(lines):
+                if line.startswith('# '):
+                    lines.insert(i + 1, f'\n{embed}\n')
+                    inserted = True
+                    break
+            if not inserted:
+                lines.append(f'\n{embed}\n')
+            md_file.write_text('\n'.join(lines), encoding='utf-8')
+            linked += 1
+            break
+
+    return linked
