@@ -83,9 +83,12 @@ def download_with_ffmpeg(m3u8_url: str, output: Path) -> bool:
         str(output),
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, timeout=3600)
+        result = subprocess.run(cmd, capture_output=True, timeout=7200)  # 2 hours max
         return result.returncode == 0 and output.exists() and output.stat().st_size > 1024
     except (subprocess.TimeoutExpired, OSError):
+        # Clean up partial file
+        if output.exists():
+            output.unlink()
         return False
 
 
@@ -144,7 +147,16 @@ def download_videos(session: requests.Session, output_dir: Path,
             print("NO MANIFEST"); failed += 1; continue
 
         print(f"downloading...", end=' ', flush=True)
-        if download_with_ffmpeg(m3u8_url, output_file):
+        ok = download_with_ffmpeg(m3u8_url, output_file)
+
+        # Retry once with fresh manifest if failed (expired signature)
+        if not ok:
+            print("retry...", end=' ', flush=True)
+            m3u8_url = get_hls_manifest(kinescope_url)
+            if m3u8_url:
+                ok = download_with_ffmpeg(m3u8_url, output_file)
+
+        if ok:
             size_mb = output_file.stat().st_size / 1024 / 1024
             print(f"OK ({size_mb:.0f} MB)")
             success += 1

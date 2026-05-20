@@ -41,5 +41,11 @@ list-videos: ## List 208 available recordings without downloading
 link-videos: ## Re-link downloaded videos to vault notes
 	.venv/bin/python -c "from pathlib import Path; from mifisec.videos import link_videos_to_vault; v=Path('vault'); print(f'Linked: {link_videos_to_vault(v, v/\"_videos\")}')"
 
+retry-videos: ## Retry failed video downloads (skips existing)
+	.venv/bin/mifisec --stage 3
+
+retry-assets: ## Retry failed asset downloads (skips existing)
+	.venv/bin/mifisec --stage 2
+
 clean: ## Remove vault, venv, caches
 	rm -rf vault/ .venv/ *.egg-info/ __pycache__/ .pytest_cache/
