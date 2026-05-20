@@ -219,7 +219,10 @@ def scrape_track(session: requests.Session, output_dir: Path, track_key: str, de
 
         for sec_idx, section in enumerate(chapter['sections'], 1):
             sec_safe = sanitize(section['name'])
-            sec_rel = f"{track_name}/{ch_idx:02d}. {ch_safe}/{sec_safe}"
+            sec_dir = ch_dir / f"{sec_idx:02d}. {sec_safe}"
+            sec_dir.mkdir(parents=True, exist_ok=True)
+
+            sec_rel = f"{track_name}/{ch_idx:02d}. {ch_safe}/{sec_idx:02d}. {sec_safe}/{sec_safe}"
             hub_lines.append(f"- [[{sec_rel}|{section['name']}]]")
 
             sec_parts = [
@@ -238,7 +241,7 @@ def scrape_track(session: requests.Session, output_dir: Path, track_key: str, de
                 time.sleep(delay)
 
                 if content:
-                    unit_file = ch_dir / f"{sec_idx:02d}-{unit_idx:02d}. {unit_safe}.md"
+                    unit_file = sec_dir / f"{unit_idx:02d}. {unit_safe}.md"
                     unit_file.write_text(
                         f'---\n{tags_yaml([track_tag, "type/lesson"])}\n---\n\n'
                         f'> **nav:** [[{sec_rel}|← {section["name"]}]]\n\n'
@@ -248,7 +251,7 @@ def scrape_track(session: requests.Session, output_dir: Path, track_key: str, de
                 else:
                     print("EMPTY")
 
-            (ch_dir / f"{sec_safe}.md").write_text('\n'.join(sec_parts), encoding='utf-8')
+            (sec_dir / f"{sec_safe}.md").write_text('\n'.join(sec_parts), encoding='utf-8')
         hub_lines.append("")
 
     (track_dir / f"{track_name}.md").write_text('\n'.join(hub_lines), encoding='utf-8')
