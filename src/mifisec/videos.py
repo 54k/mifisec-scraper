@@ -213,31 +213,50 @@ def download_videos(session: requests.Session, output_dir: Path,
     print(f"  Linked {linked} videos to notes")
 
 
-def link_videos_to_vault(vault_dir: Path, videos_dir: Path) -> int:
-    """Find corresponding markdown files and insert ![[video.mp4]] embeds."""
-    linked = 0
+def _parse_date_from_name(name: str) -> tuple:
+    """Extract date from video filename for sorting. Returns sortable tuple."""
+    import re as _re
+    # Try DD.MM.YYYY or DD.MM.YY
+    m = _re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', name)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if year < 100:
+            year += 2000
+        return (year, month, day, name)
+    # Try "Занятие N. DD.MM" pattern
+    m = _re.search(r'(\d{1,2})\.(\d{1,2})$', name)
+    if m:
+        day, month = int(m.group(1)), int(m.group(2))
+        return (2024, month, day, name)  # assume 2024 if no year
+    # Try "#N" pattern (Занятие 1, Занятие 2...)
+    m = _re.search(r'(\d+)', name)
+    if m:
+        return (0, 0, int(m.group(1)), name)
+    return (9999, 0, 0, name)
 
-    # Build index: strip numeric prefix from md filenames for matching
-    # "01. Занятие 1. 05.09.md" → "Занятие 1. 05.09"
-    md_index = {}  # clean_stem → md_file path
+
+def link_videos_to_vault(vault_dir: Path, videos_dir: Path) -> int:
+    """Find corresponding markdown files and insert ![[video.mp4]] embeds in chronological order."""
+    # Build index: strip numeric prefix from md filenames
+    md_index = {}  # clean_stem → [md_file paths]
     for md_file in vault_dir.rglob('*.md'):
-        if md_file.is_relative_to(videos_dir):
+        if md_file.is_relative_to(videos_dir) or md_file.is_relative_to(vault_dir / '_assets'):
             continue
-        if md_file.is_relative_to(vault_dir / '_assets'):
-            continue
-        # Strip leading "NN. " prefix
         clean = re.sub(r'^\d+[\.\-]\s*', '', md_file.stem)
         md_index.setdefault(clean.lower(), []).append(md_file)
 
-    for mp4 in videos_dir.rglob('*.mp4'):
-        video_name = mp4.name
-        embed = f'![[{video_name}]]'
-        stem = mp4.stem  # "Занятие 1. 05.09" or "26.02.2025 Встреча..."
+    # Phase 1: map each video to its target md file
+    # target_file → [mp4_names]
+    file_videos = {}  # md_file → list of video filenames
 
-        # Find matching md file
+    for mp4 in videos_dir.rglob('*.mp4'):
+        stem = mp4.stem
+        target = None
+
+        # Try exact match by name
         candidates = md_index.get(stem.lower(), [])
 
-        # If no exact match, try substring search in "Записи" sections
+        # Try "Записи" sections
         if not candidates:
             for md_file in vault_dir.rglob('*.md'):
                 if md_file.is_relative_to(videos_dir) or md_file.is_relative_to(vault_dir / '_assets'):
@@ -247,10 +266,9 @@ def link_videos_to_vault(vault_dir: Path, videos_dir: Path) -> int:
                     if stem.lower() == clean_md.lower():
                         candidates.append(md_file)
 
+        # Fallback: section aggregate in matching chapter
         if not candidates:
-            # No matching .md exists — find the section aggregate and append there
-            # Look for section "Записи" files in matching chapter
-            chapter_dir_name = mp4.parent.name  # e.g. "IV. Выпускная квалификационная работа"
+            chapter_dir_name = mp4.parent.name
             for md_file in vault_dir.rglob('*.md'):
                 if md_file.is_relative_to(videos_dir):
                     continue
@@ -259,23 +277,39 @@ def link_videos_to_vault(vault_dir: Path, videos_dir: Path) -> int:
                         candidates.append(md_file)
                         break
 
-        for md_file in candidates:
-            content = md_file.read_text(encoding='utf-8')
-            if embed in content:
-                linked += 1  # already linked, count as success
+        if candidates:
+            target = candidates[0]
+            file_videos.setdefault(target, []).append(mp4.name)
+
+    # Phase 2: for each target file, sort videos chronologically and write
+    linked = 0
+    for md_file, video_names in file_videos.items():
+        content = md_file.read_text(encoding='utf-8')
+
+        # Remove existing video embeds (we'll rewrite them sorted)
+        lines = content.split('\n')
+        lines = [l for l in lines if not (l.strip().startswith('![[') and l.strip().endswith('.mp4]]'))]
+        content = '\n'.join(lines)
+
+        # Sort videos by date
+        video_names.sort(key=lambda n: _parse_date_from_name(n.replace('.mp4', '')))
+
+        # Filter out already present
+        to_insert = [f'![[{name}]]' for name in video_names]
+
+        # Insert after first heading
+        lines = content.split('\n')
+        insert_idx = len(lines)
+        for i, line in enumerate(lines):
+            if line.startswith('# '):
+                insert_idx = i + 1
                 break
-            # Insert after heading
-            lines = content.split('\n')
-            inserted = False
-            for i, line in enumerate(lines):
-                if line.startswith('# '):
-                    lines.insert(i + 1, f'\n{embed}\n')
-                    inserted = True
-                    break
-            if not inserted:
-                lines.append(f'\n{embed}\n')
-            md_file.write_text('\n'.join(lines), encoding='utf-8')
-            linked += 1
-            break
+
+        # Add sorted video block
+        video_block = '\n' + '\n\n'.join(to_insert) + '\n'
+        lines.insert(insert_idx, video_block)
+
+        md_file.write_text('\n'.join(lines), encoding='utf-8')
+        linked += len(video_names)
 
     return linked
