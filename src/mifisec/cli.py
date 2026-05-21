@@ -17,7 +17,11 @@ def ask(prompt: str, default: str = 'y') -> bool:
     """Ask yes/no question. Repeats until valid input."""
     suffix = '[Y/n]' if default == 'y' else '[y/N]'
     while True:
-        answer = input(f"  {prompt} {suffix}: ").strip().lower()
+        try:
+            answer = input(f"  {prompt} {suffix}: ").strip().lower()
+        except (UnicodeDecodeError, EOFError):
+            print()
+            return default == 'y'
         if not answer:
             return default == 'y'
         if answer in ('y', 'yes', 'д', 'да'):
