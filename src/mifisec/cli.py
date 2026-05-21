@@ -6,11 +6,11 @@ import shutil
 from pathlib import Path
 
 from .auth import COOKIES_FILE
-from .utils import COURSES, PROJECT_ROOT
+from .utils import COURSES
 
 
 def get_output_dir() -> Path:
-    return PROJECT_ROOT / "vault"
+    return Path.cwd() / "vault"
 
 
 def ask(prompt: str, default: str = 'y') -> bool:

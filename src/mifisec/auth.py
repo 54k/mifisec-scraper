@@ -5,9 +5,7 @@ from pathlib import Path
 
 import requests
 
-from .utils import PROJECT_ROOT
-
-COOKIES_FILE = PROJECT_ROOT / "cookies.json"
+COOKIES_FILE = Path.cwd() / "cookies.json"
 
 REQUIRED_COOKIES = ('sessionid', 'edx-jwt-cookie-header-payload', 'edx-jwt-cookie-signature')
 
