@@ -19,7 +19,7 @@ def ask(prompt: str, default: str = 'y') -> bool:
     answer = input(f"  {prompt} {suffix}: ").strip().lower()
     if not answer:
         return default == 'y'
-    return answer in ('y', 'yes', 'д', 'да')
+    return answer in ('y', 'yes', '1', 'д', 'да')
 
 
 def ensure_cookies() -> bool:
