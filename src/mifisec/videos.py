@@ -2,11 +2,13 @@
 
 import re
 import subprocess
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+VIDEO_WORKERS = 4
 
 from .utils import BASE_URL, COURSES, sanitize
 
@@ -96,19 +98,78 @@ def download_with_ffmpeg(m3u8_url: str, output: Path) -> bool:
         return False
 
 
+def _download_one_video(session: requests.Session, rec: dict, videos_dir: Path) -> tuple[str, str]:
+    """Download a single video. Returns (name, status)."""
+    chapter_safe = sanitize(rec['chapter'], 60) or 'other'
+    name_safe = sanitize(rec['name'], 60)
+    output_file = videos_dir / chapter_safe / f"{name_safe}.mp4"
+
+    if output_file.exists() and output_file.stat().st_size > 1024:
+        return (rec['name'], "cached")
+
+    kinescope_url = get_kinescope_url(session, rec['id'])
+    if not kinescope_url:
+        return (rec['name'], "no_video")
+
+    m3u8_url = get_hls_manifest(kinescope_url)
+    if not m3u8_url:
+        return (rec['name'], "no_manifest")
+
+    ok = download_with_ffmpeg(m3u8_url, output_file)
+
+    # Retry with fresh manifest if failed
+    if not ok:
+        m3u8_url = get_hls_manifest(kinescope_url)
+        if m3u8_url:
+            ok = download_with_ffmpeg(m3u8_url, output_file)
+
+    if ok:
+        size_mb = output_file.stat().st_size / 1024 / 1024
+        return (rec['name'], f"ok:{size_mb:.0f}MB")
+    return (rec['name'], "failed")
+
+
 def download_videos(session: requests.Session, output_dir: Path,
                     quality: int = 720, limit: int = 0, list_only: bool = False):
-    """Main entry: find recordings, download via ffmpeg."""
-    from .scraper import get_course_structure
+    """Main entry: find recordings, download via ffmpeg (4 parallel)."""
+    from .scraper import get_course_structure, get_enrollments
 
     videos_dir = output_dir / "_videos"
     videos_dir.mkdir(parents=True, exist_ok=True)
 
+    # Scan only courses that exist in vault
     all_recordings = []
-    for course_id, course_label in [
-        (COURSES['main']['id'], 'main'),
-        (COURSES['pentest']['id'], 'pentest'),
-    ]:
+    courses_to_scan = []
+
+    # Check which courses are actually in the vault
+    if (output_dir / 'Семестр 1').exists():
+        courses_to_scan.append((COURSES['main']['id'], 'main'))
+    if (output_dir / COURSES['pentest']['name']).exists():
+        courses_to_scan.append((COURSES['pentest']['id'], 'pentest'))
+    if (output_dir / COURSES['compliance']['name']).exists():
+        courses_to_scan.append((COURSES['compliance']['id'], 'compliance'))
+
+    # Also check for any other course dirs
+    known_dirs = {'Семестр 1', 'Семестр 2', 'Семестр 3', 'Семестр 4',
+                  'ДПО и факультативы', COURSES['pentest']['name'],
+                  COURSES['compliance']['name'], '_assets', '_videos', '.obsidian'}
+    for d in output_dir.iterdir():
+        if d.is_dir() and d.name not in known_dirs and not d.name.startswith(('.', '_')):
+            # Unknown course dir — try to find its course_id
+            try:
+                enrollments = get_enrollments(session)
+                for e in enrollments:
+                    if e['name'] == d.name or sanitize(e['name']) == d.name:
+                        courses_to_scan.append((e['id'], e['name']))
+                        break
+            except Exception:
+                pass
+
+    if not courses_to_scan:
+        print("  Нет скачанных курсов для поиска видео")
+        return
+
+    for course_id, course_label in courses_to_scan:
         print(f"Scanning: {course_label}...")
         try:
             blocks = get_course_structure(session, course_id)
@@ -128,46 +189,45 @@ def download_videos(session: requests.Session, output_dir: Path,
         return
 
     max_items = limit or len(all_recordings)
-    success = failed = skipped = 0
+    to_download = all_recordings[:max_items]
 
-    for i, rec in enumerate(all_recordings[:max_items], 1):
+    # Filter out already cached
+    pending = []
+    skipped = 0
+    for rec in to_download:
         chapter_safe = sanitize(rec['chapter'], 60) or 'other'
         name_safe = sanitize(rec['name'], 60)
         output_file = videos_dir / chapter_safe / f"{name_safe}.mp4"
-
         if output_file.exists() and output_file.stat().st_size > 1024:
             skipped += 1
-            continue
-
-        print(f"  [{i}/{max_items}] {rec['chapter']} / {rec['name']}...", end=' ', flush=True)
-
-        kinescope_url = get_kinescope_url(session, rec['id'])
-        time.sleep(0.5)
-        if not kinescope_url:
-            print("NO VIDEO"); failed += 1; continue
-
-        m3u8_url = get_hls_manifest(kinescope_url)
-        if not m3u8_url:
-            print("NO MANIFEST"); failed += 1; continue
-
-        print(f"downloading...", end=' ', flush=True)
-        ok = download_with_ffmpeg(m3u8_url, output_file)
-
-        # Retry once with fresh manifest if failed (expired signature)
-        if not ok:
-            print("retry...", end=' ', flush=True)
-            m3u8_url = get_hls_manifest(kinescope_url)
-            if m3u8_url:
-                ok = download_with_ffmpeg(m3u8_url, output_file)
-
-        if ok:
-            size_mb = output_file.stat().st_size / 1024 / 1024
-            print(f"OK ({size_mb:.0f} MB)")
-            success += 1
         else:
-            print("FAILED"); failed += 1
+            pending.append(rec)
 
-    print(f"\nDone: {success} downloaded, {skipped} cached, {failed} failed")
+    if skipped:
+        print(f"  Cached: {skipped}, to download: {len(pending)}")
+
+    if not pending:
+        print("  All videos already downloaded")
+    else:
+        success = failed = 0
+        with ThreadPoolExecutor(max_workers=VIDEO_WORKERS) as executor:
+            futures = {executor.submit(_download_one_video, session, rec, videos_dir): rec
+                       for rec in pending}
+            done = 0
+            for future in as_completed(futures):
+                done += 1
+                name, status = future.result()
+                if status.startswith("ok:"):
+                    success += 1
+                    print(f"  [{done}/{len(pending)}] {name}... {status}")
+                elif status == "cached":
+                    skipped += 1
+                else:
+                    failed += 1
+                    print(f"  [{done}/{len(pending)}] {name}... {status.upper()}")
+
+        print(f"\nDone: {success} downloaded, {skipped} cached, {failed} failed")
+
     total_size = sum(f.stat().st_size for f in videos_dir.rglob('*.mp4'))
     print(f"Total video size: {total_size / 1024 / 1024 / 1024:.1f} GB")
 
