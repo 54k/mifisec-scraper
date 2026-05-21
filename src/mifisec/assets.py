@@ -10,7 +10,7 @@ import requests
 
 CDN_PATTERN = re.compile(r'(?:https?:)?//lms-cdn\.skillfactory\.ru/[^\s\)\]\"\']+')
 IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp'}
-MAX_WORKERS = 4
+MAX_WORKERS = 16
 TIMEOUT = 30
 
 
@@ -79,6 +79,10 @@ def rewrite_links(vault_dir: Path, url_to_filename: dict[str, str]) -> int:
         try:
             content = md_file.read_text(encoding='utf-8')
         except (UnicodeDecodeError, OSError):
+            continue
+
+        # Quick check: skip files without any CDN reference
+        if 'lms-cdn' not in content:
             continue
 
         original = content
