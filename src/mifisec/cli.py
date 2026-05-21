@@ -302,10 +302,10 @@ def wizard(output_dir: Path, quality: int = 720):
         def _ask_quality() -> int:
             print()
             print("  Качество видео:")
-            print("    1) 360p (~3 GB, быстро)")
-            print("    2) 480p (~5 GB)")
-            print("    3) 720p (~10 GB, рекомендуется)")
-            print("    4) 1080p (~20 GB)")
+            print("    1) 360p")
+            print("    2) 480p")
+            print("    3) 720p (рекомендуется)")
+            print("    4) 1080p")
             print()
             q_map = {'1': 360, '2': 480, '3': 720, '4': 1080}
             while True:

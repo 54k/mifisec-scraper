@@ -98,36 +98,6 @@ def download_with_ffmpeg(m3u8_url: str, output: Path) -> bool:
         return False
 
 
-def _download_one_video(session: requests.Session, rec: dict, videos_dir: Path) -> tuple[str, str]:
-    """Download a single video. Returns (name, status)."""
-    chapter_safe = sanitize(rec['chapter'], 60) or 'other'
-    name_safe = sanitize(rec['name'], 60)
-    output_file = videos_dir / chapter_safe / f"{name_safe}.mp4"
-
-    if output_file.exists() and output_file.stat().st_size > 1024:
-        return (rec['name'], "cached")
-
-    kinescope_url = get_kinescope_url(session, rec['id'])
-    if not kinescope_url:
-        return (rec['name'], "no_video")
-
-    m3u8_url = get_hls_manifest(kinescope_url)
-    if not m3u8_url:
-        return (rec['name'], "no_manifest")
-
-    ok = download_with_ffmpeg(m3u8_url, output_file)
-
-    # Retry with fresh manifest if failed
-    if not ok:
-        m3u8_url = get_hls_manifest(kinescope_url)
-        if m3u8_url:
-            ok = download_with_ffmpeg(m3u8_url, output_file)
-
-    if ok:
-        size_mb = output_file.stat().st_size / 1024 / 1024
-        return (rec['name'], f"ok:{size_mb:.0f}MB")
-    return (rec['name'], "failed")
-
 
 def download_videos(session: requests.Session, output_dir: Path,
                     quality: int = 720, limit: int = 0, list_only: bool = False):
@@ -210,21 +180,49 @@ def download_videos(session: requests.Session, output_dir: Path,
         print("  All videos already downloaded")
     else:
         success = failed = 0
-        with ThreadPoolExecutor(max_workers=VIDEO_WORKERS) as executor:
-            futures = {executor.submit(_download_one_video, session, rec, videos_dir): rec
-                       for rec in pending}
-            done = 0
-            for future in as_completed(futures):
-                done += 1
-                name, status = future.result()
-                if status.startswith("ok:"):
-                    success += 1
-                    print(f"  [{done}/{len(pending)}] {name}... {status}")
-                elif status == "cached":
-                    skipped += 1
-                else:
+        total_pending = len(pending)
+
+        # Process in batches of VIDEO_WORKERS
+        for batch_start in range(0, total_pending, VIDEO_WORKERS):
+            batch = pending[batch_start:batch_start + VIDEO_WORKERS]
+
+            # Resolve manifests sequentially (fast, needs session)
+            jobs = []  # (rec, m3u8_url, output_file)
+            for rec in batch:
+                chapter_safe = sanitize(rec['chapter'], 60) or 'other'
+                name_safe = sanitize(rec['name'], 60)
+                output_file = videos_dir / chapter_safe / f"{name_safe}.mp4"
+                idx = batch_start + len(jobs) + 1
+
+                print(f"  [{idx}/{total_pending}] {rec['name']}...", end=' ', flush=True)
+                kinescope_url = get_kinescope_url(session, rec['id'])
+                if not kinescope_url:
+                    print("NO VIDEO")
                     failed += 1
-                    print(f"  [{done}/{len(pending)}] {name}... {status.upper()}")
+                    continue
+                m3u8_url = get_hls_manifest(kinescope_url)
+                if not m3u8_url:
+                    print("NO MANIFEST")
+                    failed += 1
+                    continue
+                print("downloading...", flush=True)
+                jobs.append((rec, m3u8_url, output_file))
+
+            # Download batch in parallel (ffmpeg subprocesses)
+            if jobs:
+                with ThreadPoolExecutor(max_workers=VIDEO_WORKERS) as executor:
+                    futures = {executor.submit(download_with_ffmpeg, m3u8, out): (rec, out)
+                               for rec, m3u8, out in jobs}
+                    for future in as_completed(futures):
+                        rec, out = futures[future]
+                        ok = future.result()
+                        if ok:
+                            size_mb = out.stat().st_size / 1024 / 1024
+                            print(f"    -> {rec['name']}: OK ({size_mb:.0f} MB)", flush=True)
+                            success += 1
+                        else:
+                            print(f"    -> {rec['name']}: FAILED", flush=True)
+                            failed += 1
 
         print(f"\nDone: {success} downloaded, {skipped} cached, {failed} failed")
 
