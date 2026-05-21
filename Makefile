@@ -41,6 +41,9 @@ list-videos: ## List 208 available recordings without downloading
 link-videos: ## Re-link downloaded videos to vault notes
 	.venv/bin/python -c "from pathlib import Path; from mifisec.videos import link_videos_to_vault; v=Path('vault'); print(f'Linked: {link_videos_to_vault(v, v/\"_videos\")}')"
 
+fix-graph: ## Reapply Graph View colors (fixes blank graph)
+	.venv/bin/mifisec --fix-graph
+
 retry-videos: ## Retry failed video downloads (skips existing)
 	.venv/bin/mifisec --stage 3
 

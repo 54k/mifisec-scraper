@@ -371,10 +371,21 @@ def main():
                         help='Video quality (default: 720)')
     parser.add_argument('--limit', type=int, default=0, help='Limit items (for testing)')
     parser.add_argument('--list-videos', action='store_true', help='List videos without downloading')
+    parser.add_argument('--fix-graph', action='store_true', help='Reapply Graph View colors (fixes blank graph)')
     parser.add_argument('--output', type=str, default=None, help='Output directory (default: ./vault)')
     args = parser.parse_args()
 
     output_dir = Path(args.output) if args.output else get_output_dir()
+
+    if args.fix_graph:
+        import json as _json
+        from .utils import GRAPH_CONFIG
+        obsidian_dir = output_dir / '.obsidian'
+        obsidian_dir.mkdir(exist_ok=True)
+        (obsidian_dir / 'graph.json').write_text(_json.dumps(GRAPH_CONFIG, indent=2), encoding='utf-8')
+        print(f"  ✓ Graph View раскраска обновлена: {obsidian_dir / 'graph.json'}")
+        print("  Закрой Obsidian → открой заново → Graph View")
+        return
 
     if args.list_videos:
         run_stage3(output_dir, list_only=True)
