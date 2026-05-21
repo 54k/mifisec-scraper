@@ -118,8 +118,8 @@ def ensure_cookies() -> bool:
     return False
 
 
-def run_stage1(output_dir: Path, tracks: list[str] | None = None):
-    """Run Stage 1. If tracks specified, scrape only those."""
+def run_stage1(output_dir: Path, tracks: list[str] | None = None, force: bool = False):
+    """Run Stage 1. If tracks specified, scrape only those. force=True rewrites all."""
     from .auth import create_session
     from .scraper import scrape_main_course, scrape_track, write_index
 
@@ -127,17 +127,16 @@ def run_stage1(output_dir: Path, tracks: list[str] | None = None):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if tracks is None:
-        # All
-        scrape_main_course(session, output_dir)
-        scrape_track(session, output_dir, 'pentest')
-        scrape_track(session, output_dir, 'compliance')
+        scrape_main_course(session, output_dir, force=force)
+        scrape_track(session, output_dir, 'pentest', force=force)
+        scrape_track(session, output_dir, 'compliance', force=force)
     else:
         if 'main' in tracks:
-            scrape_main_course(session, output_dir)
+            scrape_main_course(session, output_dir, force=force)
         if 'pentest' in tracks:
-            scrape_track(session, output_dir, 'pentest')
+            scrape_track(session, output_dir, 'pentest', force=force)
         if 'compliance' in tracks:
-            scrape_track(session, output_dir, 'compliance')
+            scrape_track(session, output_dir, 'compliance', force=force)
 
     write_index(output_dir)
     print("\n  ✓ Stage 1 complete — лекции скачаны")
@@ -227,7 +226,7 @@ def wizard(output_dir: Path, quality: int = 720):
                         _sh.rmtree(p)
                         print(f"    Удалён: {COURSES['compliance']['name']}/")
 
-            run_stage1(output_dir, tracks=selected)
+            run_stage1(output_dir, tracks=selected, force=(mode == '2'))
     elif ask("Скачать лекции?"):
         run_stage1(output_dir)
     else:
