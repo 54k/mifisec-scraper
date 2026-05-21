@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 from .auth import COOKIES_FILE
-from .utils import PROJECT_ROOT
+from .utils import COURSES, PROJECT_ROOT
 
 
 def get_output_dir() -> Path:
@@ -27,13 +27,32 @@ def ask(prompt: str, default: str = 'y') -> bool:
         print("  Введи y или n")
 
 
+def choose(prompt: str, options: list[str]) -> list[int]:
+    """Ask user to pick options by number. Returns list of chosen indices."""
+    print(f"  {prompt}")
+    for i, opt in enumerate(options, 1):
+        print(f"    {i}) {opt}")
+    print(f"    a) Всё")
+    print()
+    while True:
+        answer = input("  Выбор (номера через запятую или 'a'): ").strip().lower()
+        if answer in ('a', 'all', 'все', 'а'):
+            return list(range(len(options)))
+        try:
+            indices = [int(x.strip()) - 1 for x in answer.split(',')]
+            if all(0 <= i < len(options) for i in indices):
+                return indices
+        except ValueError:
+            pass
+        print(f"  Введи номера 1-{len(options)} через запятую или 'a'")
+
+
 def ensure_cookies() -> bool:
     """Check cookies.json exists, guide user to create if not."""
     if COOKIES_FILE.exists():
         try:
             with open(COOKIES_FILE) as f:
                 data = json.load(f)
-            # Validate
             if isinstance(data, list):
                 names = {c.get('name') for c in data}
             else:
@@ -62,7 +81,6 @@ def ensure_cookies() -> bool:
     print('  }')
     print()
 
-    # Try to accept paste
     if ask("Вставить cookies JSON прямо сейчас?"):
         print("  Вставь JSON и нажми Enter (или пустая строка для отмены):")
         lines = []
@@ -89,16 +107,27 @@ def ensure_cookies() -> bool:
     return False
 
 
-def run_stage1(output_dir: Path):
+def run_stage1(output_dir: Path, tracks: list[str] | None = None):
+    """Run Stage 1. If tracks specified, scrape only those."""
     from .auth import create_session
     from .scraper import scrape_main_course, scrape_track, write_index
 
     session = create_session()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    scrape_main_course(session, output_dir)
-    scrape_track(session, output_dir, 'pentest')
-    scrape_track(session, output_dir, 'compliance')
+    if tracks is None:
+        # All
+        scrape_main_course(session, output_dir)
+        scrape_track(session, output_dir, 'pentest')
+        scrape_track(session, output_dir, 'compliance')
+    else:
+        if 'main' in tracks:
+            scrape_main_course(session, output_dir)
+        if 'pentest' in tracks:
+            scrape_track(session, output_dir, 'pentest')
+        if 'compliance' in tracks:
+            scrape_track(session, output_dir, 'compliance')
+
     write_index(output_dir)
     print("\n  ✓ Stage 1 complete — лекции скачаны")
 
@@ -142,8 +171,17 @@ def wizard(output_dir: Path, quality: int = 720):
 
     if (output_dir / 'index.md').exists():
         print("  ⚡ Vault уже существует")
-        if ask("Перескачать лекции (перезапишет)?", default='n'):
-            run_stage1(output_dir)
+        if ask("Перескачать/докачать лекции?", default='n'):
+            # Ask what to scrape
+            options = [
+                f"Основной курс ({COURSES['main']['name']})",
+                f"Трек Пентест ({COURSES['pentest']['name']})",
+                f"Трек Комплаенс ({COURSES['compliance']['name']})",
+            ]
+            track_keys = ['main', 'pentest', 'compliance']
+            indices = choose("Что скачать?", options)
+            selected = [track_keys[i] for i in indices]
+            run_stage1(output_dir, tracks=selected)
         else:
             print("  Пропущено")
     elif ask("Скачать лекции?"):
@@ -210,6 +248,8 @@ def main():
     )
     parser.add_argument('--all', action='store_true', help='Run all stages non-interactively')
     parser.add_argument('--stage', type=int, choices=[1, 2, 3], help='Run specific stage')
+    parser.add_argument('--track', type=str, choices=['main', 'pentest', 'compliance'],
+                        action='append', help='Scrape specific track(s) only (Stage 1)')
     parser.add_argument('--quality', type=int, default=720, choices=[360, 480, 720, 1080],
                         help='Video quality (default: 720)')
     parser.add_argument('--limit', type=int, default=0, help='Limit items (for testing)')
@@ -226,14 +266,14 @@ def main():
     if args.all:
         if not ensure_cookies():
             return
-        run_stage1(output_dir)
+        run_stage1(output_dir, tracks=args.track)
         run_stage2(output_dir)
         run_stage3(output_dir, quality=args.quality)
         return
 
     if args.stage:
         if args.stage == 1:
-            run_stage1(output_dir)
+            run_stage1(output_dir, tracks=args.track)
         elif args.stage == 2:
             run_stage2(output_dir)
         elif args.stage == 3:
