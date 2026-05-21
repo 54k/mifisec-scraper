@@ -341,11 +341,19 @@ def wizard(output_dir: Path, quality: int = 720):
         else:
             print("  Пропущено")
 
+    # Ensure graph.json is correct (Obsidian may overwrite it)
+    from .utils import GRAPH_CONFIG
+    import json as _json
+    obsidian_dir = output_dir / '.obsidian'
+    obsidian_dir.mkdir(exist_ok=True)
+    (obsidian_dir / 'graph.json').write_text(_json.dumps(GRAPH_CONFIG, indent=2), encoding='utf-8')
+
     # Done
     print()
     print("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print(f"  ✓ Готово! Vault: {output_dir}")
     print("  Открой в Obsidian: File → Open folder as vault")
+    print("  ⚠ Если граф без цветов: закрой Obsidian → открой заново → Graph View")
     print("  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print()
 
