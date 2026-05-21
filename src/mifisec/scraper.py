@@ -92,11 +92,13 @@ def scrape_main_course(session: requests.Session, output_dir: Path, delay: float
     tree = build_tree(blocks)
     tree.sort(key=lambda ch: get_semester(ch['name']) + ch['name'])
 
-    # Group by semester
+    # Group by semester, number within each semester
     semesters = {}
-    for ch_idx, chapter in enumerate(tree, 1):
+    for chapter in tree:
         sem_id = get_semester(chapter['name'])
-        semesters.setdefault(sem_id, []).append((ch_idx, chapter))
+        semesters.setdefault(sem_id, [])
+        ch_idx = len(semesters[sem_id]) + 1
+        semesters[sem_id].append((ch_idx, chapter))
 
     total_units = sum(len(s['units']) for ch in tree for s in ch['sections'])
     processed = 0
