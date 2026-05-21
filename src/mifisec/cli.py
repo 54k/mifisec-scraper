@@ -118,25 +118,32 @@ def ensure_cookies() -> bool:
     return False
 
 
-def run_stage1(output_dir: Path, tracks: list[str] | None = None, force: bool = False):
-    """Run Stage 1. If tracks specified, scrape only those. force=True rewrites all."""
+def run_stage1(output_dir: Path, courses: list[dict] | None = None, force: bool = False):
+    """Run Stage 1. courses = list of {id, name} dicts to scrape."""
     from .auth import create_session
     from .scraper import scrape_main_course, scrape_track, write_index
+    from .utils import COURSES
 
     session = create_session()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if tracks is None:
+    if courses is None:
         scrape_main_course(session, output_dir, force=force)
         scrape_track(session, output_dir, 'pentest', force=force)
         scrape_track(session, output_dir, 'compliance', force=force)
     else:
-        if 'main' in tracks:
-            scrape_main_course(session, output_dir, force=force)
-        if 'pentest' in tracks:
-            scrape_track(session, output_dir, 'pentest', force=force)
-        if 'compliance' in tracks:
-            scrape_track(session, output_dir, 'compliance', force=force)
+        for course in courses:
+            cid = course['id']
+            # Known tracks use dedicated scraper
+            if cid == COURSES['main']['id']:
+                scrape_main_course(session, output_dir, force=force)
+            elif cid == COURSES['pentest']['id']:
+                scrape_track(session, output_dir, 'pentest', force=force)
+            elif cid == COURSES['compliance']['id']:
+                scrape_track(session, output_dir, 'compliance', force=force)
+            else:
+                # Generic course — scrape as track
+                scrape_track(session, output_dir, cid, force=force)
 
     write_index(output_dir)
     print("\n  ✓ Stage 1 complete — лекции скачаны")
@@ -175,11 +182,27 @@ def wizard(output_dir: Path, quality: int = 720):
     # Step 1: lectures
     print()
     print("  ━━━ Stage 1: Лекции и материалы ━━━")
-    print("  Скачивает все лекции, тесты, задания в Obsidian markdown.")
-    print("  Время: ~20 минут, размер: ~20 MB")
+    print("  Скачивает лекции, тесты, задания в Obsidian markdown.")
     print()
 
+    # Fetch available courses dynamically
+    from .auth import create_session as _create_session
+    from .scraper import get_enrollments
+    print("  Загрузка списка курсов...", end=' ', flush=True)
+    try:
+        _session = _create_session()
+        enrollments = get_enrollments(_session)
+        print(f"найдено {len(enrollments)}")
+    except Exception as e:
+        print(f"ошибка: {e}")
+        enrollments = []
+
+    if not enrollments:
+        print("  Не удалось получить список курсов.")
+        return
+
     if (output_dir / 'index.md').exists():
+        print()
         print("  ⚡ Vault уже существует")
         print("    1) Докачать недостающее")
         print("    2) Удалить и скачать заново")
@@ -197,46 +220,34 @@ def wizard(output_dir: Path, quality: int = 720):
         if mode in ('n', 'no', 'н'):
             print("  Пропущено")
         else:
-            options = [
-                f"Основной курс ({COURSES['main']['name']})",
-                f"Трек Пентест ({COURSES['pentest']['name']})",
-                f"Трек Комплаенс ({COURSES['compliance']['name']})",
-            ]
-            track_keys = ['main', 'pentest', 'compliance']
+            options = [f"{c['name']}" for c in enrollments]
             indices = choose("Что качать?", options)
-            selected = [track_keys[i] for i in indices]
+            selected = [enrollments[i] for i in indices]
 
             if mode == '2':
                 import shutil as _sh
                 from .utils import SEMESTER_NAMES
-                if 'main' in selected:
-                    for sem_name in SEMESTER_NAMES.values():
-                        sem_path = output_dir / sem_name
-                        if sem_path.exists():
-                            _sh.rmtree(sem_path)
-                            print(f"    Удалён: {sem_name}/")
-                if 'pentest' in selected:
-                    p = output_dir / COURSES['pentest']['name']
-                    if p.exists():
-                        _sh.rmtree(p)
-                        print(f"    Удалён: {COURSES['pentest']['name']}/")
-                if 'compliance' in selected:
-                    p = output_dir / COURSES['compliance']['name']
-                    if p.exists():
-                        _sh.rmtree(p)
-                        print(f"    Удалён: {COURSES['compliance']['name']}/")
+                for course in selected:
+                    if course['id'] == COURSES['main']['id']:
+                        for sem_name in SEMESTER_NAMES.values():
+                            sem_path = output_dir / sem_name
+                            if sem_path.exists():
+                                _sh.rmtree(sem_path)
+                                print(f"    Удалён: {sem_name}/")
+                    else:
+                        # Derive dir name
+                        cname = course['name']
+                        p = output_dir / cname
+                        if p.exists():
+                            _sh.rmtree(p)
+                            print(f"    Удалён: {cname}/")
 
-            run_stage1(output_dir, tracks=selected, force=(mode == '2'))
+            run_stage1(output_dir, courses=selected, force=(mode == '2'))
     elif ask("Скачать лекции?"):
-        options = [
-            f"Основной курс ({COURSES['main']['name']})",
-            f"Трек Пентест ({COURSES['pentest']['name']})",
-            f"Трек Комплаенс ({COURSES['compliance']['name']})",
-        ]
-        track_keys = ['main', 'pentest', 'compliance']
+        options = [f"{c['name']}" for c in enrollments]
         indices = choose("Что качать?", options)
-        selected = [track_keys[i] for i in indices]
-        run_stage1(output_dir, tracks=selected)
+        selected = [enrollments[i] for i in indices]
+        run_stage1(output_dir, courses=selected)
     else:
         print("  Пропущено")
         return
@@ -245,7 +256,6 @@ def wizard(output_dir: Path, quality: int = 720):
     print()
     print("  ━━━ Stage 2: Картинки и документы ━━━")
     print("  Скачивает PNG/JPG/PDF/PPTX для оффлайн-просмотра.")
-    print("  Время: ~3 минуты, размер: ~500 MB")
     print()
 
     assets_dir = output_dir / '_assets'
@@ -396,14 +406,14 @@ def main():
     if args.all:
         if not ensure_cookies():
             return
-        run_stage1(output_dir, tracks=args.track)
+        run_stage1(output_dir, courses=[{'id': COURSES[t]['id'], 'name': COURSES[t]['name']} for t in args.track] if args.track else None)
         run_stage2(output_dir)
         run_stage3(output_dir, quality=args.quality)
         return
 
     if args.stage:
         if args.stage == 1:
-            run_stage1(output_dir, tracks=args.track)
+            run_stage1(output_dir, courses=[{'id': COURSES[t]['id'], 'name': COURSES[t]['name']} for t in args.track] if args.track else None)
         elif args.stage == 2:
             run_stage2(output_dir)
         elif args.stage == 3:

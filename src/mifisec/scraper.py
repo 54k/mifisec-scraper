@@ -18,6 +18,20 @@ from .utils import (
 )
 
 
+def get_enrollments(session: requests.Session) -> list[dict]:
+    """Get all enrolled courses for the user."""
+    resp = session.get(f"{BASE_URL}/api/enrollment/v1/enrollment")
+    resp.raise_for_status()
+    results = []
+    for e in resp.json():
+        details = e.get('course_details', {})
+        results.append({
+            'id': details.get('course_id', ''),
+            'name': details.get('course_name', ''),
+        })
+    return results
+
+
 def get_course_structure(session: requests.Session, course_id: str) -> dict:
     resp = session.get(f"{BASE_URL}/api/course_home/outline/{course_id}")
     resp.raise_for_status()
@@ -215,16 +229,25 @@ def scrape_main_course(session: requests.Session, output_dir: Path, force: bool 
 
 
 def scrape_track(session: requests.Session, output_dir: Path, track_key: str, force: bool = False):
-    """Scrape a track course (pentest/compliance). Skips existing files unless force=True."""
-    track = COURSES[track_key]
-    track_name = track['name']
-    track_tag = track.get('tag', f'track/{track_key}')
+    """Scrape a track/course. track_key can be a COURSES key or a raw course_id."""
+    if track_key in COURSES:
+        track = COURSES[track_key]
+        track_name = track['name']
+        track_tag = track.get('tag', f'track/{track_key}')
+        course_id = track['id']
+    else:
+        # Raw course_id passed directly
+        course_id = track_key
+        # Derive name from course_id
+        track_name = course_id.split('+')[1] if '+' in course_id else track_key
+        track_tag = f'track/{sanitize(track_name, 30).lower().replace(" ", "-")}'
+
     track_dir = output_dir / track_name
     track_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\nFetching structure: {track_name}...")
     try:
-        blocks = get_course_structure(session, track['id'])
+        blocks = get_course_structure(session, course_id)
         tree = build_tree(blocks)
     except Exception as e:
         print(f"  Error: {e}")
