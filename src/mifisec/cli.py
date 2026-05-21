@@ -39,7 +39,11 @@ def choose(prompt: str, options: list[str]) -> list[int]:
     print(f"    a) Всё")
     print()
     while True:
-        answer = input("  Выбор (номера через запятую или 'a'): ").strip().lower()
+        try:
+            answer = input("  Выбор (номера через запятую или 'a'): ").strip().lower()
+        except (UnicodeDecodeError, EOFError):
+            print()
+            return list(range(len(options)))
         if answer in ('a', 'all', 'все', 'а'):
             return list(range(len(options)))
         try:
@@ -89,7 +93,10 @@ def ensure_cookies() -> bool:
         print("  Вставь JSON и нажми Enter (или пустая строка для отмены):")
         lines = []
         while True:
-            line = input()
+            try:
+                line = input()
+            except (UnicodeDecodeError, EOFError):
+                break
             if not line and lines:
                 break
             lines.append(line)
@@ -180,7 +187,10 @@ def wizard(output_dir: Path, quality: int = 720):
         print("    n) Пропустить")
         print()
         while True:
-            mode = input("  Выбор [1/2/n]: ").strip().lower()
+            try:
+                mode = input("  Выбор [1/2/n]: ").strip().lower()
+            except (UnicodeDecodeError, EOFError):
+                mode = 'n'
             if mode in ('1', '2', 'n', 'no', 'н'):
                 break
             print("  Введи 1, 2 или n")
@@ -240,7 +250,10 @@ def wizard(output_dir: Path, quality: int = 720):
         print("    n) Пропустить")
         print()
         while True:
-            mode = input("  Выбор [1/2/n]: ").strip().lower()
+            try:
+                mode = input("  Выбор [1/2/n]: ").strip().lower()
+            except (UnicodeDecodeError, EOFError):
+                mode = 'n'
             if mode in ('1', '2', 'n', 'no', 'н'):
                 break
             print("  Введи 1, 2 или n")
