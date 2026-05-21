@@ -49,7 +49,7 @@ def test_scrape_creates_semester_structure(vault_dir, course_outline, xblock_htm
         mock_outline_resp if 'course_home' in url else mock_xblock_resp
     )
 
-    scrape_main_course(mock_session, vault_dir, delay=0)
+    scrape_main_course(mock_session, vault_dir)
 
     # Verify semester dirs created
     dirs = [d.name for d in vault_dir.iterdir() if d.is_dir()]
@@ -102,7 +102,7 @@ def test_wikilinks_resolve(vault_dir, course_outline, xblock_html):
         mock_outline_resp if 'course_home' in url else mock_xblock_resp
     )
 
-    scrape_main_course(mock_session, vault_dir, delay=0)
+    scrape_main_course(mock_session, vault_dir)
     write_index(vault_dir)
 
     # Collect all wikilinks

@@ -2,12 +2,15 @@
 
 import json
 import re
-import time
+
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+
+FETCH_WORKERS = 6  # concurrent xblock fetches (conservative for rate limits)
 
 from .utils import (
     BASE_URL, COURSES, GRAPH_CONFIG, SEMESTER_NAMES,
@@ -84,7 +87,7 @@ def fetch_unit(session: requests.Session, block_id: str) -> str:
         return ""
 
 
-def scrape_main_course(session: requests.Session, output_dir: Path, delay: float = 0.5, force: bool = False):
+def scrape_main_course(session: requests.Session, output_dir: Path, force: bool = False):
     """Scrape the main MIFISEC course into semester-organized structure.
     If force=False, skips units that already have a .md file."""
     course = COURSES['main']
@@ -150,17 +153,35 @@ def scrape_main_course(session: requests.Session, output_dir: Path, delay: float
                     f'# {section["name"]}', '',
                 ]
 
+                # Batch fetch: determine which units need downloading
+                units_to_fetch = []
                 for unit_idx, unit in enumerate(section['units'], 1):
-                    processed += 1
                     unit_name_safe = sanitize(unit['name'])
                     unit_file = sec_dir / f"{unit_idx:02d}. {unit_name_safe}.md"
-
-                    # Skip existing files in append mode
                     if not force and unit_file.exists() and unit_file.stat().st_size > 100:
+                        units_to_fetch.append((unit_idx, unit, unit_file, None))  # cached
+                    else:
+                        units_to_fetch.append((unit_idx, unit, unit_file, unit['id']))  # need fetch
+
+                # Parallel fetch for units that need it
+                fetch_ids = [(i, uid) for i, (_, _, _, uid) in enumerate(units_to_fetch) if uid]
+                fetched = {}
+                if fetch_ids:
+                    with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as executor:
+                        futures = {executor.submit(fetch_unit, session, uid): i for i, uid in fetch_ids}
+                        for future in as_completed(futures):
+                            idx = futures[future]
+                            fetched[idx] = future.result()
+
+                # Write results in order
+                for list_idx, (unit_idx, unit, unit_file, block_id) in enumerate(units_to_fetch):
+                    processed += 1
+                    unit_name_safe = sanitize(unit['name'])
+
+                    if block_id is None:
+                        # Cached
                         print(f"    [{processed}/{total_units}] {unit['name']}... CACHED")
-                        # Still add to section aggregate from existing file
                         existing = unit_file.read_text(encoding='utf-8')
-                        # Extract content after the heading
                         parts_split = existing.split('\n# ', 1)
                         if len(parts_split) > 1:
                             after_heading = parts_split[1].split('\n', 1)
@@ -168,10 +189,8 @@ def scrape_main_course(session: requests.Session, output_dir: Path, delay: float
                                 sec_parts.extend([f"## {unit['name']}", "", after_heading[1].strip(), ""])
                         continue
 
-                    print(f"    [{processed}/{total_units}] {unit['name']}...", end=' ', flush=True)
-
-                    content = fetch_unit(session, unit['id'])
-                    time.sleep(delay)
+                    content = fetched.get(list_idx, "")
+                    print(f"    [{processed}/{total_units}] {unit['name']}...", end=' ')
 
                     if content:
                         unit_nav = sec_rel
@@ -195,7 +214,7 @@ def scrape_main_course(session: requests.Session, output_dir: Path, delay: float
         (sem_dir / f"{sem_name}.md").write_text('\n'.join(sem_hub_lines), encoding='utf-8')
 
 
-def scrape_track(session: requests.Session, output_dir: Path, track_key: str, delay: float = 0.5, force: bool = False):
+def scrape_track(session: requests.Session, output_dir: Path, track_key: str, force: bool = False):
     """Scrape a track course (pentest/compliance). Skips existing files unless force=True."""
     track = COURSES[track_key]
     track_name = track['name']
@@ -249,12 +268,29 @@ def scrape_track(session: requests.Session, output_dir: Path, track_key: str, de
                 f'# {section["name"]}', '',
             ]
 
+            # Batch fetch
+            units_to_fetch = []
             for unit_idx, unit in enumerate(section['units'], 1):
-                processed += 1
                 unit_safe = sanitize(unit['name'])
                 unit_file = sec_dir / f"{unit_idx:02d}. {unit_safe}.md"
-
                 if not force and unit_file.exists() and unit_file.stat().st_size > 100:
+                    units_to_fetch.append((unit_idx, unit, unit_file, None))
+                else:
+                    units_to_fetch.append((unit_idx, unit, unit_file, unit['id']))
+
+            fetch_ids = [(i, uid) for i, (_, _, _, uid) in enumerate(units_to_fetch) if uid]
+            fetched = {}
+            if fetch_ids:
+                with ThreadPoolExecutor(max_workers=FETCH_WORKERS) as executor:
+                    futures = {executor.submit(fetch_unit, session, uid): i for i, uid in fetch_ids}
+                    for future in as_completed(futures):
+                        fetched[futures[future]] = future.result()
+
+            for list_idx, (unit_idx, unit, unit_file, block_id) in enumerate(units_to_fetch):
+                processed += 1
+                unit_safe = sanitize(unit['name'])
+
+                if block_id is None:
                     print(f"    [{processed}/{total}] {unit['name']}... CACHED")
                     existing = unit_file.read_text(encoding='utf-8')
                     parts_split = existing.split('\n# ', 1)
@@ -264,10 +300,8 @@ def scrape_track(session: requests.Session, output_dir: Path, track_key: str, de
                             sec_parts.extend([f"## {unit['name']}", "", after_heading[1].strip(), ""])
                     continue
 
-                print(f"    [{processed}/{total}] {unit['name']}...", end=' ', flush=True)
-
-                content = fetch_unit(session, unit['id'])
-                time.sleep(delay)
+                content = fetched.get(list_idx, "")
+                print(f"    [{processed}/{total}] {unit['name']}...", end=' ')
 
                 if content:
                     unit_file.write_text(
