@@ -43,19 +43,26 @@ mifisec   # или: make wizard
 3. **Stage 2** — картинки, PDF, PPTX → `_assets/`, перезаписывает CDN-ссылки на `![[file]]`
 4. **Stage 3** — видео записи → `_videos/`, встраивает `![[video.mp4]]` в заметки
 
-Каждый этап спрашивает. Уже скачанное пропускается. Можно прервать `Ctrl+C` и продолжить.
+На каждом этапе если данные уже есть — предлагает режим:
+- **Докачать** — пропускает существующие, скачивает новое
+- **Полный перескач** — удаляет и качает заново
+
+Для Stage 1 можно выбрать конкретные треки (main/pentest/compliance).
+Можно прервать `Ctrl+C` и продолжить — всё idempotent.
 
 ### CLI
 
 ```bash
-mifisec --all                   # всё без вопросов
-mifisec --stage 1               # только лекции
-mifisec --stage 2               # только assets + rewrite ссылок
-mifisec --stage 3               # только видео + linking в заметки
-mifisec --stage 3 --quality 480 # видео в 480p
-mifisec --stage 1 --limit 5     # smoke test (5 юнитов)
-mifisec --list-videos           # список 208 записей
-mifisec --output /path/vault    # другая директория
+mifisec --all                        # всё без вопросов
+mifisec --stage 1                    # лекции (все треки)
+mifisec --stage 1 --track compliance # только комплаенс
+mifisec --stage 1 --track pentest    # только пентест
+mifisec --stage 2                    # assets + rewrite ссылок
+mifisec --stage 3                    # видео + linking в заметки
+mifisec --stage 3 --quality 480      # видео в 480p
+mifisec --stage 1 --limit 5          # smoke test (5 юнитов)
+mifisec --list-videos                # список 208 записей
+mifisec --output /path/vault         # другая директория
 ```
 
 ### Makefile
@@ -173,10 +180,20 @@ src/mifisec/          1073 строки
 
 **Cookies протухли?** Перелогинься, обнови `cookies.json`. JWT ~7 дней.
 
+**Одногруппник дал архив, хочу докачать только комплаенс?**
+```bash
+mifisec --stage 1 --track compliance
+mifisec --stage 2   # докачает новые assets
+```
+
+**Хочу всё с нуля?** Wizard → "Полный перескач" → выбрать треки. Или `make clean && make all`.
+
 **Хочу только перелинковать видео?** `make link-videos`
 
 **Obsidian не показывает цвета?** Закрой Graph View → `Cmd+P` → `Graph view: Open graph view`
 
 **Картинки не видны?** `make assets` — скачает и подменит CDN-ссылки.
 
-**Видео не играет в Obsidian?** Проверь что `.mp4` в `_assets/` или `_videos/`. Obsidian рендерит `![[file.mp4]]` как inline player.
+**Видео не играет в Obsidian?** Проверь что `.mp4` в `_videos/`. Obsidian рендерит `![[file.mp4]]` как inline player.
+
+**OOM / terminated при видео?** Обнови пакет (`git pull && pip install -e .`) — фикс буферизации ffmpeg.
