@@ -142,7 +142,7 @@ def download_assets(vault_dir: Path):
             else:
                 failed += 1
             if done % 50 == 0 or done == len(tasks):
-                print(f"  [{done}/{len(tasks)}] ✓{success} ⊙{cached} ✗{failed}", flush=True)
+                print(f"  [{done}/{len(tasks)}] ok:{success} cached:{cached} err:{failed}", flush=True)
 
     print(f"\n  New: {success}, Cached: {cached}, Failed: {failed}")
     print(f"  Total size: {total_size / 1024 / 1024:.1f} MB")
