@@ -14,12 +14,17 @@ def get_output_dir() -> Path:
 
 
 def ask(prompt: str, default: str = 'y') -> bool:
-    """Ask yes/no question."""
+    """Ask yes/no question. Repeats until valid input."""
     suffix = '[Y/n]' if default == 'y' else '[y/N]'
-    answer = input(f"  {prompt} {suffix}: ").strip().lower()
-    if not answer:
-        return default == 'y'
-    return answer in ('y', 'yes', '1', 'д', 'да')
+    while True:
+        answer = input(f"  {prompt} {suffix}: ").strip().lower()
+        if not answer:
+            return default == 'y'
+        if answer in ('y', 'yes', 'д', 'да'):
+            return True
+        if answer in ('n', 'no', 'н', 'нет'):
+            return False
+        print("  Введи y или n")
 
 
 def ensure_cookies() -> bool:
