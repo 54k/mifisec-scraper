@@ -335,11 +335,15 @@ def wizard(output_dir: Path, quality: int = 720):
                     _sh.rmtree(videos_dir)
                     print(f"    Удалён: _videos/")
                 run_stage3(output_dir, quality=quality)
-        elif ask("Скачать видео записи (208 лекций)?", default='n'):
-            quality = _ask_quality()
-            run_stage3(output_dir, quality=quality)
         else:
-            print("  Пропущено")
+            print("    y) Скачать")
+            print("    n) Пропустить")
+            print()
+            if ask("Скачать видео записи (208 лекций)?", default='n'):
+                quality = _ask_quality()
+                run_stage3(output_dir, quality=quality)
+            else:
+                print("  Пропущено")
 
     # Ensure graph.json is correct (Obsidian may overwrite it)
     from .utils import GRAPH_CONFIG
