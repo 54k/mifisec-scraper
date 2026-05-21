@@ -228,7 +228,15 @@ def wizard(output_dir: Path, quality: int = 720):
 
             run_stage1(output_dir, tracks=selected, force=(mode == '2'))
     elif ask("Скачать лекции?"):
-        run_stage1(output_dir)
+        options = [
+            f"Основной курс ({COURSES['main']['name']})",
+            f"Трек Пентест ({COURSES['pentest']['name']})",
+            f"Трек Комплаенс ({COURSES['compliance']['name']})",
+        ]
+        track_keys = ['main', 'pentest', 'compliance']
+        indices = choose("Что качать?", options)
+        selected = [track_keys[i] for i in indices]
+        run_stage1(output_dir, tracks=selected)
     else:
         print("  Пропущено")
         return
@@ -327,7 +335,7 @@ def wizard(output_dir: Path, quality: int = 720):
                     _sh.rmtree(videos_dir)
                     print(f"    Удалён: _videos/")
                 run_stage3(output_dir, quality=quality)
-        elif ask("Скачать видео записи?", default='n'):
+        elif ask("Скачать видео записи (208 лекций)?", default='n'):
             quality = _ask_quality()
             run_stage3(output_dir, quality=quality)
         else:
