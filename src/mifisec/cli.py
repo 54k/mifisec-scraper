@@ -273,7 +273,8 @@ def wizard(output_dir: Path, quality: int = 720):
     print()
     print("  ━━━ Stage 3: Видео записи занятий ━━━")
     print("  Скачивает записи лекций с Kinescope (нужен ffmpeg).")
-    print(f"  Время: ~3 часа, размер: ~10 GB (при {quality}p)")
+    print(f"  Качество: {quality}p (можно изменить: mifisec --quality 480)")
+    print(f"  Примерный размер: {'~5 GB' if quality <= 480 else '~10 GB'}")
     print()
 
     if not shutil.which('ffmpeg'):
@@ -281,6 +282,27 @@ def wizard(output_dir: Path, quality: int = 720):
         print("  Пропущено")
     else:
         videos_dir = output_dir / '_videos'
+
+        def _ask_quality() -> int:
+            print()
+            print("  Качество видео:")
+            print("    1) 360p (~3 GB, быстро)")
+            print("    2) 480p (~5 GB)")
+            print("    3) 720p (~10 GB, рекомендуется)")
+            print("    4) 1080p (~20 GB)")
+            print()
+            q_map = {'1': 360, '2': 480, '3': 720, '4': 1080}
+            while True:
+                try:
+                    q = input(f"  Качество [1-4, default=3]: ").strip()
+                except (UnicodeDecodeError, EOFError):
+                    return 720
+                if not q:
+                    return 720
+                if q in q_map:
+                    return q_map[q]
+                print("  Введи 1-4")
+
         if videos_dir.exists() and len(list(videos_dir.rglob('*.mp4'))) > 10:
             n_videos = len(list(videos_dir.rglob('*.mp4')))
             print(f"  ⚡ Видео уже скачаны ({n_videos} файлов)")
@@ -289,19 +311,24 @@ def wizard(output_dir: Path, quality: int = 720):
             print("    n) Пропустить")
             print()
             while True:
-                mode = input("  Выбор [1/2/n]: ").strip().lower()
+                try:
+                    mode = input("  Выбор [1/2/n]: ").strip().lower()
+                except (UnicodeDecodeError, EOFError):
+                    mode = 'n'
                 if mode in ('1', '2', 'n', 'no', 'н'):
                     break
                 print("  Введи 1, 2 или n")
             if mode in ('n', 'no', 'н'):
                 print("  Пропущено")
             else:
+                quality = _ask_quality()
                 if mode == '2':
                     import shutil as _sh
                     _sh.rmtree(videos_dir)
                     print(f"    Удалён: _videos/")
                 run_stage3(output_dir, quality=quality)
         elif ask("Скачать видео записи?", default='n'):
+            quality = _ask_quality()
             run_stage3(output_dir, quality=quality)
         else:
             print("  Пропущено")
