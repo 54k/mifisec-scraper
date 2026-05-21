@@ -107,49 +107,27 @@ def download_videos(session: requests.Session, output_dir: Path,
     videos_dir = output_dir / "_videos"
     videos_dir.mkdir(parents=True, exist_ok=True)
 
-    # Scan only courses that exist in vault
+    # Scan all enrolled courses for recordings
     all_recordings = []
-    courses_to_scan = []
 
-    # Check which courses are actually in the vault
-    if (output_dir / 'Семестр 1').exists():
-        courses_to_scan.append((COURSES['main']['id'], 'main'))
-    if (output_dir / COURSES['pentest']['name']).exists():
-        courses_to_scan.append((COURSES['pentest']['id'], 'pentest'))
-    if (output_dir / COURSES['compliance']['name']).exists():
-        courses_to_scan.append((COURSES['compliance']['id'], 'compliance'))
-
-    # Also check for any other course dirs
-    known_dirs = {'Семестр 1', 'Семестр 2', 'Семестр 3', 'Семестр 4',
-                  'ДПО и факультативы', COURSES['pentest']['name'],
-                  COURSES['compliance']['name'], '_assets', '_videos', '.obsidian'}
-    for d in output_dir.iterdir():
-        if d.is_dir() and d.name not in known_dirs and not d.name.startswith(('.', '_')):
-            # Unknown course dir — try to find its course_id
-            try:
-                enrollments = get_enrollments(session)
-                for e in enrollments:
-                    if e['name'] == d.name or sanitize(e['name']) == d.name:
-                        courses_to_scan.append((e['id'], e['name']))
-                        break
-            except Exception:
-                pass
-
-    if not courses_to_scan:
-        print("  Нет скачанных курсов для поиска видео")
+    print("  Поиск записей во всех курсах...")
+    try:
+        enrollments = get_enrollments(session)
+    except Exception as e:
+        print(f"  Ошибка получения списка курсов: {e}")
         return
 
-    for course_id, course_label in courses_to_scan:
-        print(f"Scanning: {course_label}...")
+    for course in enrollments:
         try:
-            blocks = get_course_structure(session, course_id)
+            blocks = get_course_structure(session, course['id'])
             recs = find_recording_verticals(blocks)
-            for r in recs:
-                r['course'] = course_label
-            all_recordings.extend(recs)
-            print(f"  Found {len(recs)} recordings")
-        except Exception as e:
-            print(f"  Error: {e}")
+            if recs:
+                for r in recs:
+                    r['course'] = course['name']
+                all_recordings.extend(recs)
+                print(f"    {course['name']}: {len(recs)} записей")
+        except Exception:
+            pass
 
     print(f"\nTotal recordings: {len(all_recordings)}")
 
