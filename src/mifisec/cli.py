@@ -281,8 +281,6 @@ def wizard(output_dir: Path, quality: int = 720):
     print()
     print("  ━━━ Stage 3: Видео записи занятий ━━━")
     print("  Скачивает записи лекций с Kinescope (нужен ffmpeg).")
-    print(f"  Качество: {quality}p (можно изменить: mifisec --quality 480)")
-    print(f"  Примерный размер: {'~5 GB' if quality <= 480 else '~10 GB'}")
     print()
 
     if not shutil.which('ffmpeg'):
