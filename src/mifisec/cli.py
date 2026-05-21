@@ -242,8 +242,23 @@ def wizard(output_dir: Path, quality: int = 720):
 
     assets_dir = output_dir / '_assets'
     if assets_dir.exists() and len(list(assets_dir.iterdir())) > 100:
-        print("  ⚡ Assets уже скачаны")
-        if ask("Перекачать assets?", default='n'):
+        n_assets = len(list(assets_dir.iterdir()))
+        print(f"  ⚡ Assets уже скачаны ({n_assets} файлов)")
+        if ask("Докачать/перекачать assets?", default='n'):
+            print()
+            print("  Режим:")
+            print("    1) Докачать недостающие (пропустит существующие)")
+            print("    2) Удалить всё и скачать заново")
+            print()
+            while True:
+                mode = input("  Режим [1/2]: ").strip()
+                if mode in ('1', '2'):
+                    break
+                print("  Введи 1 или 2")
+            if mode == '2':
+                import shutil as _sh
+                _sh.rmtree(assets_dir)
+                print(f"    Удалён: _assets/")
             run_stage2(output_dir)
         else:
             print("  Пропущено")
@@ -265,8 +280,23 @@ def wizard(output_dir: Path, quality: int = 720):
     else:
         videos_dir = output_dir / '_videos'
         if videos_dir.exists() and len(list(videos_dir.rglob('*.mp4'))) > 10:
-            print(f"  ⚡ Видео уже скачаны ({len(list(videos_dir.rglob('*.mp4')))} файлов)")
+            n_videos = len(list(videos_dir.rglob('*.mp4')))
+            print(f"  ⚡ Видео уже скачаны ({n_videos} файлов)")
             if ask("Докачать/перекачать видео?", default='n'):
+                print()
+                print("  Режим:")
+                print("    1) Докачать недостающие (пропустит существующие)")
+                print("    2) Удалить всё и скачать заново")
+                print()
+                while True:
+                    mode = input("  Режим [1/2]: ").strip()
+                    if mode in ('1', '2'):
+                        break
+                    print("  Введи 1 или 2")
+                if mode == '2':
+                    import shutil as _sh
+                    _sh.rmtree(videos_dir)
+                    print(f"    Удалён: _videos/")
                 run_stage3(output_dir, quality=quality)
             else:
                 print("  Пропущено")
