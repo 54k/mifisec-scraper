@@ -1,221 +1,190 @@
 # MIFISEC Course Scraper
 
-Скрейпер курса "Безопасность информационных систем" (НИЯУ МИФИ × SkillFactory) в Obsidian vault.
+Скрейпер курса "Безопасность информационных систем" (НИЯУ МИФИ × SkillFactory) → Obsidian vault.
 
-## Quick Start
+## Tutorial: первый запуск
 
 ```bash
+# 1. Установка
 git clone https://github.com/54k/mifisec-scraper
 cd mifisec-scraper
-make install-global                   # доступен из любой папки
-brew install ffmpeg                   # для видео (Stage 3)
+make install-global
+brew install ffmpeg
 
-# в любой папке:
+# 2. Подготовка (в любой папке)
 mkdir ~/mifisec && cd ~/mifisec
-cp /path/to/cookies.json .           # или wizard поможет создать
-mifisec                               # интерактивный wizard
+cp /path/to/cookies.json .    # или wizard поможет создать
+
+# 3. Запуск
+mifisec
 ```
 
-## Установка
+Wizard проведёт через все этапы: выбор курсов → лекции → картинки → видео.
 
-### Глобально (рекомендуется)
+## How-to guides
+
+### Скачать только определённые курсы
 
 ```bash
-make install-global   # или: pip3 install --break-system-packages -e .
+mifisec --stage 1 --track pentest
+mifisec --stage 1 --track compliance
 ```
 
-После этого `mifisec` доступен из любой папки. Vault и cookies.json ищутся в **текущей директории**.
-
-### В venv (для разработки)
+### Скачать видео в низком качестве
 
 ```bash
-make dev              # или: python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-source .venv/bin/activate
+mifisec --stage 3 --quality 360
 ```
 
-### Зависимости
+### Докачать после прерывания
+
+Просто запусти `mifisec` снова — пропустит скачанное.
+
+### Починить раскраску Graph View
 
 ```bash
-brew install ffmpeg   # для видео (Stage 3)
+mifisec --fix-graph
+# Закрой Obsidian → открой заново
 ```
 
-## Cookies
-
-Залогинься на https://student-lk.skillfactory.ru и получи cookies:
-
-- **Wizard:** `mifisec` предложит вставить JSON прямо в терминал
-- **Вручную:** `cp cookies.example.json cookies.json` → заполни из DevTools (F12 → Application → Cookies)
-- **Cookie-Editor:** экспорт из расширения браузера (массив поддерживается)
-
-## Использование
-
-### Wizard (рекомендуется)
+### Перелинковать видео в заметки
 
 ```bash
-mifisec   # или: make wizard
+make link-videos
 ```
 
-Пошаговый гайд:
-1. Проверяет/создаёт `cookies.json`
-2. **Stage 1** — загружает список курсов из API, предлагает выбрать какие качать → markdown
-3. **Stage 2** — картинки, PDF, PPTX → `_assets/`, перезаписывает CDN-ссылки на `![[file]]`
-4. **Stage 3** — видео записи → `_videos/` (4 параллельных ffmpeg), встраивает `![[video.mp4]]` в заметки
+### Одногруппник дал архив, нужен только комплаенс
 
-На каждом этапе если данные уже есть — предлагает режим:
-- **Докачать** — пропускает существующие, скачивает новое
-- **Полный перескач** — удаляет и качает заново
+```bash
+cd /path/to/archive
+mifisec --stage 1 --track compliance
+mifisec --stage 2
+```
 
-Stage 1 динамически показывает все доступные курсы из enrollments API.
-Stage 3 предлагает выбор качества (360p/480p/720p/1080p).
-Можно прервать `Ctrl+C` и продолжить — всё idempotent.
+### Полный перескач с нуля
+
+```bash
+make clean
+mifisec
+```
+
+## Reference
 
 ### CLI
 
 ```bash
+mifisec                              # интерактивный wizard
 mifisec --all                        # всё без вопросов
-mifisec --stage 1                    # лекции (все треки)
-mifisec --stage 1 --track compliance # только комплаенс
-mifisec --stage 1 --track pentest    # только пентест
-mifisec --stage 2                    # assets + rewrite ссылок
-mifisec --stage 3                    # видео + linking в заметки
-mifisec --stage 3 --quality 480      # видео в 480p
-mifisec --stage 1 --limit 5          # smoke test (5 юнитов)
-mifisec --list-videos                # список 208 записей
-mifisec --fix-graph                  # починить раскраску Graph View
-mifisec --output /path/vault         # другая директория
+mifisec --stage {1,2,3}              # конкретный этап
+mifisec --stage 1 --track NAME       # конкретный курс (main/pentest/compliance)
+mifisec --stage 3 --quality {360,480,720,1080}
+mifisec --limit N                    # ограничить количество (для теста)
+mifisec --list-videos                # список записей
+mifisec --fix-graph                  # починить Graph View цвета
+mifisec --output /path               # другая директория
 ```
 
 ### Makefile
 
 ```bash
-make help           # все команды
-make install-global # установить глобально (mifisec из любой папки)
-make dev            # venv + install + pytest (для разработки)
-make test           # 32 теста за 0.3с
-make wizard         # интерактивный wizard
-make scrape         # Stage 1: лекции (~4 мин, ~20 MB)
-make assets         # Stage 2: картинки/PDF + rewrite (~1 мин, ~500 MB)
-make videos         # Stage 3: видео + linking (~3 часа, ~10 GB)
-make videos-480     # Stage 3: в 480p (~5 GB)
-make all            # всё (1→2→3)
-make smoke          # быстрый тест (5 юнитов)
-make list-videos    # список записей
-make link-videos    # перелинковать видео в заметки (без скачивания)
-make fix-graph      # починить раскраску Graph View
-make clean          # удалить vault, venv, кэши
+make install-global  # mifisec доступен глобально
+make dev             # venv для разработки
+make test            # 32 теста, <1с
+make wizard          # интерактивный wizard
+make scrape          # Stage 1
+make assets          # Stage 2
+make videos          # Stage 3 (720p)
+make videos-480      # Stage 3 (480p)
+make all             # 1→2→3
+make smoke           # 5 юнитов (быстрый тест)
+make list-videos     # список записей
+make link-videos     # перелинковать видео
+make fix-graph       # починить Graph View
+make clean           # удалить vault, venv
 ```
 
-## Stages: что делает каждый
+### Stages
 
-### Stage 1: Лекции → Markdown
+| Stage | Что делает | Вход | Выход |
+|-------|-----------|------|-------|
+| 1 | Open edX API → markdown | cookies.json | vault с md-файлами, frontmatter, wikilinks |
+| 2 | CDN assets → локальные файлы | vault/*.md с CDN-URL | `_assets/` + ссылки `![[file]]` |
+| 3 | Kinescope → mp4 через ffmpeg | vault (для поиска записей) | `_videos/` + `![[video.mp4]]` в заметках |
 
-- Обращается к Open edX API (`/api/course_home/outline/`)
-- Обходит дерево: курс → главы → секции → юниты
-- Для каждого юнита: GET xblock HTML → парсинг → markdownify
-- Создаёт Obsidian vault с:
-  - Семестровыми папками (`Семестр 1/`, ..., `Семестр 4/`)
-  - MOC-файлами дисциплин (навигационные хабы)
-  - YAML frontmatter с тегами для Graph View
-  - Wikilinks навигация: unit → section → MOC → semester → index
-  - `.obsidian/graph.json` с цветовыми группами
-
-### Stage 2: Assets → Offline
-
-- Сканирует все `.md` на CDN-ссылки (`lms-cdn.skillfactory.ru`)
-- Скачивает в `_assets/` (4 потока, без auth — CDN публичный)
-- **Перезаписывает ссылки:** `![](https://cdn...)` → `![[hash_file.png]]`
-- После Stage 2 картинки рендерятся в Obsidian оффлайн
-
-### Stage 3: Видео → Vault
-
-- Находит 208 записей занятий (Kinescope iframe в xblock)
-- Получает HLS manifest (m3u8) с Referer bypass
-- Скачивает через ffmpeg (copy, без перекодирования)
-- **Линкует в заметки:** вставляет `![[video.mp4]]` в соответствующий `.md`
-- Obsidian рендерит встроенный видеоплеер
-
-## Структура vault
+### Структура vault
 
 ```
 vault/
-├── index.md                      ← точка входа
-├── Семестр 1/                    ← 9 дисциплин
-│   ├── Семестр 1.md              ← хаб семестра
-│   └── 01. I. Криптография/
-│       ├── I. Криптография.md    ← MOC дисциплины
-│       └── 01. Модуль 1.../
-│           ├── Модуль 1.md       ← агрегат секции
-│           └── 01. Тема.md       ← отдельный урок
-├── Семестр 2/ ... 4/
-├── ДПО и факультативы/
+├── index.md
+├── Семестр {1-4}/
+│   ├── Семестр N.md              (hub)
+│   └── NN. Discipline/
+│       ├── Discipline.md         (MOC)
+│       └── NN. Section/
+│           ├── Section.md        (aggregate)
+│           └── NN. Unit.md       (lesson)
 ├── Трек Пентест/
 ├── Трек Комплаенс/
-├── _assets/                      ← картинки/документы (Stage 2)
-├── _videos/                      ← записи занятий (Stage 3)
-└── .obsidian/graph.json
+├── _assets/                      (images, PDF, PPTX)
+├── _videos/                      (mp4)
+└── .obsidian/graph.json          (Graph View colors)
 ```
 
-## Graph View
+### Graph View цвета
 
-| Цвет | Что |
-|------|-----|
-| Красный (крупный) | index — точка входа |
-| Золотой | Семестровые хабы |
-| Жёлтый | Дисциплины (MOC) |
-| Синий | Семестр 1 |
-| Зелёный | Семестр 2 |
-| Оранжевый | Семестр 3 |
-| Красный (мелкий) | Семестр 4 |
-| Фиолетовый | ДПО |
-| Розовый | Треки |
+| Цвет | Tag query | Что |
+|------|-----------|-----|
+| Красный (крупный) | `path:index` | Точка входа |
+| Золотой | `tag:#type/semester-hub` | Семестры |
+| Жёлтый | `tag:#type/moc` | Дисциплины |
+| Синий | `tag:#semester/1` | Семестр 1 |
+| Зелёный | `tag:#semester/2` | Семестр 2 |
+| Оранжевый | `tag:#semester/3` | Семестр 3 |
+| Красный | `tag:#semester/4` | Семестр 4 |
+| Фиолетовый | `tag:#track/dpo` | ДПО |
+| Розовый | `tag:#type/track-hub` | Треки |
 
-## Тесты
-
-```bash
-make test   # или: pytest -v
-```
-
-32 теста, 0.34с, без сети:
-- Cookie loading (flat/array/missing)
-- Sanitize, tags, semester detection
-- Vault structure generation (mock HTTP)
-- Wikilink resolution
-- CDN URL collection + rewriting (images/docs)
-- Video discovery (kinescope iframe → HLS manifest)
-- Video linking (exact match, dedup, fallback to section, skip _assets)
-
-## Структура кода
+### Структура кода
 
 ```
-src/mifisec/          1073 строки
-├── cli.py       (243) — wizard + argparse
-├── scraper.py   (280) — Stage 1: Open edX → markdown
-├── videos.py    (229) — Stage 3: Kinescope → mp4 + linking
-├── assets.py    (140) — Stage 2: CDN → _assets/ + rewrite
-├── utils.py     (128) — constants, helpers
-└── auth.py       (50) — cookies, session
+src/mifisec/
+├── cli.py        — wizard + argparse
+├── scraper.py    — Stage 1: Open edX → markdown
+├── assets.py     — Stage 2: CDN → _assets/ + rewrite
+├── videos.py     — Stage 3: Kinescope → _videos/ + linking
+├── utils.py      — constants, helpers
+└── auth.py       — cookies, session
 ```
 
-## FAQ
+### Cookies
 
-**Прервал скрипт, можно продолжить?** Да. `Ctrl+C` и запусти снова — пропустит скачанное.
+Нужны 3 cookies с `.skillfactory.ru`:
+- `sessionid`
+- `edx-jwt-cookie-header-payload`
+- `edx-jwt-cookie-signature`
 
-**Cookies протухли?** Перелогинься, обнови `cookies.json`. JWT ~7 дней.
+Форматы: flat JSON dict или Cookie-Editor array export.
 
-**Одногруппник дал архив, хочу докачать только комплаенс?**
-```bash
-mifisec --stage 1 --track compliance
-mifisec --stage 2   # докачает новые assets
-```
+## Explanation
 
-**Хочу всё с нуля?** Wizard → "Полный перескач" → выбрать треки. Или `make clean && make all`.
+### Почему 3 стейджа?
 
-**Хочу только перелинковать видео?** `make link-videos`
+Разный контент — разные паттерны доступа, размеры и failure modes. Текст (20 MB) доступен за 4 минуты, картинки (500 MB) за минуту, видео (10-50 GB) за часы. Разделение позволяет получить рабочий vault быстро и докачивать тяжёлый контент потом.
 
-**Obsidian не показывает цвета?** Закрой Graph View → `Cmd+P` → `Graph view: Open graph view`
+### Почему CDN без авторизации?
 
-**Картинки не видны?** `make assets` — скачает и подменит CDN-ссылки.
+Open edX хранит assets на CDN с прямым доступом (без cookies). Видео на Kinescope требуют Referer-заголовок (`lms.skillfactory.ru`) для получения HLS-манифеста.
 
-**Видео не играет в Obsidian?** Проверь что `.mp4` в `_videos/`. Obsidian рендерит `![[file.mp4]]` как inline player.
+### Почему graph.json сбрасывается?
 
-**OOM / terminated при видео?** Обнови пакет (`git pull && pip install -e .`) — фикс буферизации ffmpeg.
+Obsidian перезаписывает `graph.json` при первом открытии Graph View. Скрейпер перезаписывает его при каждом запуске wizard. `--fix-graph` делает то же самое вручную.
+
+### Почему нумерация внутри семестра?
+
+API может отдавать chapters в разном порядке. Глобальная нумерация (1-30) создаёт дубликаты при повторных запусках. Нумерация внутри семестра (1-9 в Семестр 1) стабильна.
+
+## Architecture decisions
+
+- [ADR-0001: Three-stage pipeline](docs/decisions/0001-scraper-architecture.md)
+- [ADR-0002: Dynamic enrollment discovery](docs/decisions/0002-dynamic-enrollment-discovery.md)
+- [ADR-0003: Obsidian vault structure](docs/decisions/0003-obsidian-vault-structure.md)
