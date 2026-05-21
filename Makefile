@@ -7,6 +7,9 @@ install: ## Install package into venv
 	python -m venv .venv
 	.venv/bin/pip install -e .
 
+install-global: ## Install mifisec globally (available everywhere)
+	pip3 install --break-system-packages -e .
+
 dev: ## Install with dev deps (pytest, responses)
 	python -m venv .venv
 	.venv/bin/pip install -e ".[dev]"

@@ -5,20 +5,38 @@
 ## Quick Start
 
 ```bash
-git clone <repo>
-cd masters-course
-make dev                              # venv + install
-cp cookies.example.json cookies.json  # заполнить значения
-make wizard                           # интерактивный wizard
+git clone https://github.com/54k/mifisec-scraper
+cd mifisec-scraper
+make install-global                   # доступен из любой папки
+brew install ffmpeg                   # для видео (Stage 3)
+
+# в любой папке:
+mkdir ~/mifisec && cd ~/mifisec
+cp /path/to/cookies.json .           # или wizard поможет создать
+mifisec                               # интерактивный wizard
 ```
 
 ## Установка
 
+### Глобально (рекомендуется)
+
 ```bash
-python -m venv .venv
+make install-global   # или: pip3 install --break-system-packages -e .
+```
+
+После этого `mifisec` доступен из любой папки. Vault и cookies.json ищутся в **текущей директории**.
+
+### В venv (для разработки)
+
+```bash
+make dev              # или: python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 source .venv/bin/activate
-pip install -e ".[dev]"
-brew install ffmpeg  # для видео (Stage 3)
+```
+
+### Зависимости
+
+```bash
+brew install ffmpeg   # для видео (Stage 3)
 ```
 
 ## Cookies
@@ -62,6 +80,7 @@ mifisec --stage 3                    # видео + linking в заметки
 mifisec --stage 3 --quality 480      # видео в 480p
 mifisec --stage 1 --limit 5          # smoke test (5 юнитов)
 mifisec --list-videos                # список 208 записей
+mifisec --fix-graph                  # починить раскраску Graph View
 mifisec --output /path/vault         # другая директория
 ```
 
@@ -69,17 +88,19 @@ mifisec --output /path/vault         # другая директория
 
 ```bash
 make help           # все команды
-make dev            # venv + install + pytest
+make install-global # установить глобально (mifisec из любой папки)
+make dev            # venv + install + pytest (для разработки)
 make test           # 32 теста за 0.3с
 make wizard         # интерактивный wizard
-make scrape         # Stage 1: лекции (~20 мин, ~20 MB)
-make assets         # Stage 2: картинки/PDF + rewrite (~3 мин, ~500 MB)
+make scrape         # Stage 1: лекции (~4 мин, ~20 MB)
+make assets         # Stage 2: картинки/PDF + rewrite (~1 мин, ~500 MB)
 make videos         # Stage 3: видео + linking (~3 часа, ~10 GB)
 make videos-480     # Stage 3: в 480p (~5 GB)
 make all            # всё (1→2→3)
 make smoke          # быстрый тест (5 юнитов)
 make list-videos    # список записей
 make link-videos    # перелинковать видео в заметки (без скачивания)
+make fix-graph      # починить раскраску Graph View
 make clean          # удалить vault, venv, кэши
 ```
 
