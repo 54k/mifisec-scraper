@@ -175,30 +175,29 @@ def wizard(output_dir: Path, quality: int = 720):
 
     if (output_dir / 'index.md').exists():
         print("  ⚡ Vault уже существует")
-        if ask("Скачать/докачать лекции?", default='n'):
-            # Ask mode
-            print()
-            print("  Режим:")
-            print("    1) Докачать недостающее (к существующему)")
-            print("    2) Полный перескач (удалит и скачает заново)")
-            print()
-            while True:
-                mode = input("  Режим [1/2]: ").strip()
-                if mode in ('1', '2'):
-                    break
-                print("  Введи 1 или 2")
+        print("    1) Докачать недостающее")
+        print("    2) Удалить и скачать заново")
+        print("    n) Пропустить")
+        print()
+        while True:
+            mode = input("  Выбор [1/2/n]: ").strip().lower()
+            if mode in ('1', '2', 'n', 'no', 'н'):
+                break
+            print("  Введи 1, 2 или n")
+
+        if mode in ('n', 'no', 'н'):
+            print("  Пропущено")
+        else:
+            options = [
+                f"Основной курс ({COURSES['main']['name']})",
+                f"Трек Пентест ({COURSES['pentest']['name']})",
+                f"Трек Комплаенс ({COURSES['compliance']['name']})",
+            ]
+            track_keys = ['main', 'pentest', 'compliance']
+            indices = choose("Что качать?", options)
+            selected = [track_keys[i] for i in indices]
 
             if mode == '2':
-                # Ask what to wipe+rescrape
-                options = [
-                    f"Основной курс ({COURSES['main']['name']})",
-                    f"Трек Пентест ({COURSES['pentest']['name']})",
-                    f"Трек Комплаенс ({COURSES['compliance']['name']})",
-                ]
-                track_keys = ['main', 'pentest', 'compliance']
-                indices = choose("Что перескачать с нуля?", options)
-                selected = [track_keys[i] for i in indices]
-                # Wipe selected tracks
                 import shutil as _sh
                 from .utils import SEMESTER_NAMES
                 if 'main' in selected:
@@ -217,20 +216,8 @@ def wizard(output_dir: Path, quality: int = 720):
                     if p.exists():
                         _sh.rmtree(p)
                         print(f"    Удалён: {COURSES['compliance']['name']}/")
-                run_stage1(output_dir, tracks=selected)
-            else:
-                # Докачать — выбор что именно
-                options = [
-                    f"Основной курс ({COURSES['main']['name']})",
-                    f"Трек Пентест ({COURSES['pentest']['name']})",
-                    f"Трек Комплаенс ({COURSES['compliance']['name']})",
-                ]
-                track_keys = ['main', 'pentest', 'compliance']
-                indices = choose("Что докачать?", options)
-                selected = [track_keys[i] for i in indices]
-                run_stage1(output_dir, tracks=selected)
-        else:
-            print("  Пропущено")
+
+            run_stage1(output_dir, tracks=selected)
     elif ask("Скачать лекции?"):
         run_stage1(output_dir)
     else:
@@ -248,24 +235,23 @@ def wizard(output_dir: Path, quality: int = 720):
     if assets_dir.exists() and len(list(assets_dir.iterdir())) > 100:
         n_assets = len(list(assets_dir.iterdir()))
         print(f"  ⚡ Assets уже скачаны ({n_assets} файлов)")
-        if ask("Докачать/перекачать assets?", default='n'):
-            print()
-            print("  Режим:")
-            print("    1) Докачать недостающие (пропустит существующие)")
-            print("    2) Удалить всё и скачать заново")
-            print()
-            while True:
-                mode = input("  Режим [1/2]: ").strip()
-                if mode in ('1', '2'):
-                    break
-                print("  Введи 1 или 2")
+        print("    1) Докачать недостающие")
+        print("    2) Удалить и скачать заново")
+        print("    n) Пропустить")
+        print()
+        while True:
+            mode = input("  Выбор [1/2/n]: ").strip().lower()
+            if mode in ('1', '2', 'n', 'no', 'н'):
+                break
+            print("  Введи 1, 2 или n")
+        if mode in ('n', 'no', 'н'):
+            print("  Пропущено")
+        else:
             if mode == '2':
                 import shutil as _sh
                 _sh.rmtree(assets_dir)
                 print(f"    Удалён: _assets/")
             run_stage2(output_dir)
-        else:
-            print("  Пропущено")
     elif ask("Скачать картинки и документы?"):
         run_stage2(output_dir)
     else:
@@ -286,24 +272,23 @@ def wizard(output_dir: Path, quality: int = 720):
         if videos_dir.exists() and len(list(videos_dir.rglob('*.mp4'))) > 10:
             n_videos = len(list(videos_dir.rglob('*.mp4')))
             print(f"  ⚡ Видео уже скачаны ({n_videos} файлов)")
-            if ask("Докачать/перекачать видео?", default='n'):
-                print()
-                print("  Режим:")
-                print("    1) Докачать недостающие (пропустит существующие)")
-                print("    2) Удалить всё и скачать заново")
-                print()
-                while True:
-                    mode = input("  Режим [1/2]: ").strip()
-                    if mode in ('1', '2'):
-                        break
-                    print("  Введи 1 или 2")
+            print("    1) Докачать недостающие")
+            print("    2) Удалить и скачать заново")
+            print("    n) Пропустить")
+            print()
+            while True:
+                mode = input("  Выбор [1/2/n]: ").strip().lower()
+                if mode in ('1', '2', 'n', 'no', 'н'):
+                    break
+                print("  Введи 1, 2 или n")
+            if mode in ('n', 'no', 'н'):
+                print("  Пропущено")
+            else:
                 if mode == '2':
                     import shutil as _sh
                     _sh.rmtree(videos_dir)
                     print(f"    Удалён: _videos/")
                 run_stage3(output_dir, quality=quality)
-            else:
-                print("  Пропущено")
         elif ask("Скачать видео записи?", default='n'):
             run_stage3(output_dir, quality=quality)
         else:
