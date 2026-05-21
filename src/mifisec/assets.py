@@ -8,14 +8,22 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
-CDN_PATTERN = re.compile(r'https?://lms-cdn\.skillfactory\.ru/[^\s\)\]\"\']+')
+CDN_PATTERN = re.compile(r'(?:https?:)?//lms-cdn\.skillfactory\.ru/[^\s\)\]\"\']+')
 IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp'}
 MAX_WORKERS = 4
 TIMEOUT = 30
 
 
+def _normalize_url(url: str) -> str:
+    """Add https: to protocol-relative URLs."""
+    if url.startswith('//'):
+        return 'https:' + url
+    return url
+
+
 def url_to_local_name(url: str) -> str:
     """Generate unique local filename from URL."""
+    url = _normalize_url(url)
     parsed = urlparse(url)
     path = unquote(parsed.path)
     original_name = Path(path).name
@@ -44,9 +52,10 @@ def collect_urls(vault_dir: Path) -> dict[str, list[Path]]:
 def _download_one(url: str, dest: Path) -> tuple[str, bool, str]:
     if dest.exists() and dest.stat().st_size > 0:
         return (url, True, "cached")
+    download_url = _normalize_url(url)
     for _ in range(2):
         try:
-            resp = requests.get(url, timeout=TIMEOUT, stream=True)
+            resp = requests.get(download_url, timeout=TIMEOUT, stream=True)
             if resp.status_code == 200:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 with open(dest, 'wb') as f:
