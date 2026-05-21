@@ -355,7 +355,11 @@ def main():
         return
 
     # Default: guided wizard
-    wizard(output_dir, quality=args.quality)
+    try:
+        wizard(output_dir, quality=args.quality)
+    except KeyboardInterrupt:
+        print("\n\n  Прервано. Vault сохранён, можно продолжить позже.")
+        raise SystemExit(0)
 
 
 if __name__ == '__main__':
