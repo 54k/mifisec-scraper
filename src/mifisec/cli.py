@@ -171,17 +171,60 @@ def wizard(output_dir: Path, quality: int = 720):
 
     if (output_dir / 'index.md').exists():
         print("  ⚡ Vault уже существует")
-        if ask("Перескачать/докачать лекции?", default='n'):
-            # Ask what to scrape
-            options = [
-                f"Основной курс ({COURSES['main']['name']})",
-                f"Трек Пентест ({COURSES['pentest']['name']})",
-                f"Трек Комплаенс ({COURSES['compliance']['name']})",
-            ]
-            track_keys = ['main', 'pentest', 'compliance']
-            indices = choose("Что скачать?", options)
-            selected = [track_keys[i] for i in indices]
-            run_stage1(output_dir, tracks=selected)
+        if ask("Скачать/докачать лекции?", default='n'):
+            # Ask mode
+            print()
+            print("  Режим:")
+            print("    1) Докачать недостающее (к существующему)")
+            print("    2) Полный перескач (удалит и скачает заново)")
+            print()
+            while True:
+                mode = input("  Режим [1/2]: ").strip()
+                if mode in ('1', '2'):
+                    break
+                print("  Введи 1 или 2")
+
+            if mode == '2':
+                # Ask what to wipe+rescrape
+                options = [
+                    f"Основной курс ({COURSES['main']['name']})",
+                    f"Трек Пентест ({COURSES['pentest']['name']})",
+                    f"Трек Комплаенс ({COURSES['compliance']['name']})",
+                ]
+                track_keys = ['main', 'pentest', 'compliance']
+                indices = choose("Что перескачать с нуля?", options)
+                selected = [track_keys[i] for i in indices]
+                # Wipe selected tracks
+                import shutil as _sh
+                from .utils import SEMESTER_NAMES
+                if 'main' in selected:
+                    for sem_name in SEMESTER_NAMES.values():
+                        sem_path = output_dir / sem_name
+                        if sem_path.exists():
+                            _sh.rmtree(sem_path)
+                            print(f"    Удалён: {sem_name}/")
+                if 'pentest' in selected:
+                    p = output_dir / COURSES['pentest']['name']
+                    if p.exists():
+                        _sh.rmtree(p)
+                        print(f"    Удалён: {COURSES['pentest']['name']}/")
+                if 'compliance' in selected:
+                    p = output_dir / COURSES['compliance']['name']
+                    if p.exists():
+                        _sh.rmtree(p)
+                        print(f"    Удалён: {COURSES['compliance']['name']}/")
+                run_stage1(output_dir, tracks=selected)
+            else:
+                # Докачать — выбор что именно
+                options = [
+                    f"Основной курс ({COURSES['main']['name']})",
+                    f"Трек Пентест ({COURSES['pentest']['name']})",
+                    f"Трек Комплаенс ({COURSES['compliance']['name']})",
+                ]
+                track_keys = ['main', 'pentest', 'compliance']
+                indices = choose("Что докачать?", options)
+                selected = [track_keys[i] for i in indices]
+                run_stage1(output_dir, tracks=selected)
         else:
             print("  Пропущено")
     elif ask("Скачать лекции?"):
